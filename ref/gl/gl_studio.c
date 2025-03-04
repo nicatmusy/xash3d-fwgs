@@ -2870,6 +2870,14 @@ static void R_StudioSetupRenderer( int rendermode )
 	pglDisable( GL_ALPHA_TEST );
 	pglShadeModel( GL_SMOOTH );
 
+	if ( Cvar_VariableInteger ( "xash3d_wall_enable" ) ) 
+	{
+		pglDisable( GL_DEPTH_TEST );
+		pglDepthRange( 0.0, 0.5 );
+	}
+	else if( !pglIsEnabled( GL_DEPTH_TEST ) ) pglEnable( GL_DEPTH_TEST );
+}
+
 	// a point to setup local to world transform for boneweighted models
 	if( phdr && FBitSet( phdr->flags, STUDIO_HAS_BONEINFO ))
 	{
