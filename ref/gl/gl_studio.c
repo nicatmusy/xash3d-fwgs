@@ -2858,35 +2858,38 @@ R_StudioSetupRenderer
 
 ===============
 */
+
 static void R_StudioSetupRenderer( int rendermode )
 {
-	studiohdr_t	*phdr = m_pStudioHeader;
-	int		i;
+    studiohdr_t *phdr = m_pStudioHeader;
+    int i;
 
-	if( rendermode > kRenderTransAdd ) rendermode = 0;
-	g_studio.rendermode = bound( 0, rendermode, kRenderTransAdd );
+    if( rendermode > kRenderTransAdd ) rendermode = 0;
+    g_studio.rendermode = bound( 0, rendermode, kRenderTransAdd );
 
-	pglTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
-	pglDisable( GL_ALPHA_TEST );
-	pglShadeModel( GL_SMOOTH );
-}
-	if ( Cvar_VariableInteger ( "xash3d_wall_enable" ) ) 
-	{
-		pglDisable( GL_DEPTH_TEST );
-		pglDepthRange( 0.0, 0.5 );
-	}
-	else if( !pglIsEnabled( GL_DEPTH_TEST ) ) pglEnable( GL_DEPTH_TEST );
-}
+    pglTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
+    pglDisable( GL_ALPHA_TEST );
+    pglShadeModel( GL_SMOOTH );
 
-	// a point to setup local to world transform for boneweighted models
-	if( phdr && FBitSet( phdr->flags, STUDIO_HAS_BONEINFO ))
-	{
-		// NOTE: extended boneinfo goes immediately after bones
-		mstudioboneinfo_t *boneinfo = (mstudioboneinfo_t *)((byte *)phdr + phdr->boneindex + phdr->numbones * sizeof( mstudiobone_t ));
+    if ( Cvar_VariableInteger ( "xash3d_wall_enable" ) ) 
+    {
+        pglDisable( GL_DEPTH_TEST );
+        pglDepthRange( 0.0, 0.5 );
+    }
+    else if( !pglIsEnabled( GL_DEPTH_TEST ) ) 
+    {
+        pglEnable( GL_DEPTH_TEST );
+    }
 
-		for( i = 0; i < phdr->numbones; i++ )
-			Matrix3x4_ConcatTransforms( g_studio.worldtransform[i], g_studio.bonestransform[i], boneinfo[i].poseToBone );
-	}
+    // a point to setup local to world transform for boneweighted models
+    if( phdr && FBitSet( phdr->flags, STUDIO_HAS_BONEINFO ))
+    {
+        // NOTE: extended boneinfo goes immediately after bones
+        mstudioboneinfo_t *boneinfo = (mstudioboneinfo_t *)((byte *)phdr + phdr->boneindex + phdr->numbones * sizeof( mstudiobone_t ));
+
+        for( i = 0; i < phdr->numbones; i++ )
+            Matrix3x4_ConcatTransforms( g_studio.worldtransform[i], g_studio.bonestransform[i], boneinfo[i].poseToBone );
+    }
 }
 
 /*
