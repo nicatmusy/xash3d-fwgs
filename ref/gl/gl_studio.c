@@ -2869,7 +2869,7 @@ static void R_StudioSetupRenderer( int rendermode )
 	pglTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
 	pglDisable( GL_ALPHA_TEST );
 	pglShadeModel( GL_SMOOTH );
-
+}
 	if ( Cvar_VariableInteger ( "xash3d_wall_enable" ) ) 
 	{
 		pglDisable( GL_DEPTH_TEST );
