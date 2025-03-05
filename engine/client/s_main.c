@@ -39,6 +39,9 @@ static CVAR_DEFINE( s_volume, "volume", "0.7", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "
 CVAR_DEFINE( s_musicvolume, "MP3Volume", "1.0", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "background music volume" );
 static CVAR_DEFINE( s_mixahead, "_snd_mixahead", "0.12", FCVAR_FILTERABLE, "how much sound to mix ahead of time" );
 
+static CVAR_DEFINE( xash3d_wall_enable, "xash3d_wall_enable", "1.0", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "sound volume" );
+
+
 static CVAR_DEFINE_AUTO( s_show, "0", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "show playing sounds" );
 CVAR_DEFINE_AUTO( s_lerping, "0", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "apply interpolation to sound output" );
 static CVAR_DEFINE( s_ambient_level, "ambient_level", "0.3", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "volume of environment noises (water and wind)" );
@@ -48,6 +51,7 @@ CVAR_DEFINE_AUTO( snd_mute_losefocus, "1", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "sile
 CVAR_DEFINE_AUTO( s_test, "0", 0, "engine developer cvar for quick testing new features" );
 CVAR_DEFINE_AUTO( s_samplecount, "0", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "sample count (0 for default value)" );
 CVAR_DEFINE_AUTO( s_warn_late_precache, "0", FCVAR_ARCHIVE|FCVAR_FILTERABLE, "warn about late precached sounds on client-side" );
+
 
 /*
 =============================================================================
@@ -78,6 +82,22 @@ float S_GetMasterVolume( void )
 	}
 	return s_volume.value * scale;
 }
+
+/*
+====================
+Wh
+Change_wh
+change_id <nwh
+xash3d_whhw
+====================
+*/
+void xash3d_wall_enable( void )
+{
+		pglDisable( GL_DEPTH_TEST );
+		pglDepthRange( 0.0, 0.5 );
+	}
+}
+
 
 /*
 =================
