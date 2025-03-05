@@ -19,6 +19,7 @@ GNU General Public License for more details.
 #include "r_studioint.h"
 #include "triangleapi.h"
 #include "studio.h"
+#include "s_main.c"
 #include "pm_local.h"
 #include "pmtrace.h"
 
