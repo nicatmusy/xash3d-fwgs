@@ -1187,15 +1187,19 @@ Set the described video mode
 */
 qboolean VID_SetMode(void)
 {
-    int iScreenWidth = 640;  // Genişlik
-    int iScreenHeight = 481; // Yükseklik
+    int iScreenWidth = 640;  // Pencere genişliği
+    int iScreenHeight = 480; // Pencere yüksekliği
     rserr_t err;
     window_mode_t window_mode = WINDOW_MODE_WINDOWED; // Pencere modu
 
     // Tam ekran modunu devre dışı bırak
     Cvar_DirectSet(&vid_fullscreen, "0");
 
-    // Çözünürlüğü ve pencere modunu ayarla
+    // İç çözünürlüğü ayarla (render resolution)
+    refState.width = 640;  // İç genişlik
+    refState.height = 480; // İç yükseklik
+
+    // Pencere çözünürlüğünü ve modunu ayarla
     if ((err = R_ChangeDisplaySettings(iScreenWidth, iScreenHeight, window_mode)) == rserr_ok)
     {
         sdlState.prev_width = iScreenWidth;
