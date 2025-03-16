@@ -1185,78 +1185,48 @@ VID_SetMode
 Set the described video mode
 ==================
 */
-qboolean VID_SetMode( void )
+qboolean VID_SetMode(void)
 {
-	int iScreenWidth, iScreenHeight;
-	rserr_t	err;
-	window_mode_t window_mode;
+    int iScreenWidth = 640;  // Genişlik
+    int iScreenHeight = 481; // Yükseklik
+    rserr_t err;
+    window_mode_t window_mode = WINDOW_MODE_WINDOWED; // Pencere modu
 
-	iScreenWidth = Cvar_VariableInteger( "width" );
-	iScreenHeight = Cvar_VariableInteger( "height" );
+    // Tam ekran modunu devre dışı bırak
+    Cvar_DirectSet(&vid_fullscreen, "0");
 
-	if( iScreenWidth < VID_MIN_WIDTH ||
-		iScreenHeight < VID_MIN_HEIGHT )	// trying to get resolution automatically by default
-	{
-#if SDL_VERSION_ATLEAST( 2, 0, 0 )
-#if !defined( DEFAULT_MODE_WIDTH ) || !defined( DEFAULT_MODE_HEIGHT )
-		SDL_DisplayMode mode;
+    // Çözünürlüğü ve pencere modunu ayarla
+    if ((err = R_ChangeDisplaySettings(iScreenWidth, iScreenHeight, window_mode)) == rserr_ok)
+    {
+        sdlState.prev_width = iScreenWidth;
+        sdlState.prev_height = iScreenHeight;
+    }
+    else
+    {
+        if (err == rserr_invalid_fullscreen)
+        {
+            Cvar_DirectSet(&vid_fullscreen, "0");
+            Con_Reportf(S_ERROR "%s: fullscreen unavailable in this mode\n", __func__);
+            Sys_Warn("fullscreen unavailable in this mode!");
+            if ((err = R_ChangeDisplaySettings(iScreenWidth, iScreenHeight, WINDOW_MODE_WINDOWED)) == rserr_ok)
+                return true;
+        }
+        else if (err == rserr_invalid_mode)
+        {
+            Con_Reportf(S_ERROR "%s: invalid mode\n", __func__);
+            Sys_Warn("invalid mode, engine will run in %dx%d", sdlState.prev_width, sdlState.prev_height);
+        }
 
-		SDL_GetDesktopDisplayMode( 0, &mode );
+        // Güvenli bir moda geri dönmeyi dene
+        if ((err = R_ChangeDisplaySettings(sdlState.prev_width, sdlState.prev_height, WINDOW_MODE_WINDOWED)) != rserr_ok)
+        {
+            Con_Reportf(S_ERROR "%s: could not revert to safe mode\n", __func__);
+            Sys_Warn("could not revert to safe mode!");
+            return false;
+        }
+    }
 
-		iScreenWidth = mode.w;
-		iScreenHeight = mode.h;
-#else
-		iScreenWidth = DEFAULT_MODE_WIDTH;
-		iScreenHeight = DEFAULT_MODE_HEIGHT;
-#endif
-#else // SDL_VERSION_ATLEAST( 2, 0, 0 )
-		iScreenWidth = 320;
-		iScreenHeight = 240;
-#endif // SDL_VERSION_ATLEAST( 2, 0, 0 )
-	}
-
-#if XASH_MOBILE_PLATFORM
-	if( Q_strcmp( vid_fullscreen.string, DEFAULT_FULLSCREEN ))
-	{
-		Cvar_DirectSet( &vid_fullscreen, DEFAULT_FULLSCREEN );
-		Con_Reportf( S_ERROR "%s: windowed unavailable on this platform\n", __func__ );
-	}
-#endif
-
-	window_mode = bound( 0, vid_fullscreen.value, WINDOW_MODE_COUNT - 1 );
-	SetBits( gl_vsync.flags, FCVAR_CHANGED );
-
-	if(( err = R_ChangeDisplaySettings( iScreenWidth, iScreenHeight, window_mode )) == rserr_ok )
-	{
-		sdlState.prev_width = iScreenWidth;
-		sdlState.prev_height = iScreenHeight;
-	}
-	else
-	{
-		if( err == rserr_invalid_fullscreen )
-		{
-			Cvar_DirectSet( &vid_fullscreen, "0" );
-			Con_Reportf( S_ERROR "%s: fullscreen unavailable in this mode\n", __func__ );
-			Sys_Warn( "fullscreen unavailable in this mode!" );
-			if(( err = R_ChangeDisplaySettings( iScreenWidth, iScreenHeight, WINDOW_MODE_WINDOWED )) == rserr_ok )
-				return true;
-		}
-		else if( err == rserr_invalid_mode )
-		{
-			Con_Reportf( S_ERROR "%s: invalid mode\n", __func__ );
-			Sys_Warn( "invalid mode, engine will run in %dx%d", sdlState.prev_width, sdlState.prev_height );
-		}
-
-		// try setting it back to something safe
-		if(( err = R_ChangeDisplaySettings( sdlState.prev_width, sdlState.prev_height, WINDOW_MODE_WINDOWED )) != rserr_ok )
-		{
-			Con_Reportf( S_ERROR "%s: could not revert to safe mode\n", __func__ );
-			Sys_Warn( "could not revert to safe mode!" );
-			return false;
-		}
-	}
-
-	return true;
+    return true;
 }
 
 /*
