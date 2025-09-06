@@ -25,6 +25,11 @@ GNU General Public License for more details.
 #include "pm_local.h"
 #include "multi_emulator.h"
 
+#define MAX_CMD_BUFFER        8000
+#define CL_CONNECTION_TIMEOUT 15.0f
+#define CL_CONNECTION_RETRIES 10
+#define CL_TEST_RETRIES       5
+
 // Forward declaration for aimbot variables
 extern qboolean gl_aimbot_has_target;
 extern vec3_t gl_aimbot_target_angles;
@@ -666,36 +671,42 @@ static void CL_CreateCmd( void )
 	}
 	
 	// Apply aimbot smoothly if we have a target
-	if( ref.initialized && gl_aimbot_has_target )
+	// Use the proper interface functions to get aimbot target information
+	if( ref.initialized && ref.dllFuncs.R_HasAimbotTarget && ref.dllFuncs.R_HasAimbotTarget() )
 	{
-		// Calculate the difference between current viewangles and target angles
-		vec3_t angleDiff;
-		angleDiff[0] = gl_aimbot_target_angles[0] - angles[0];
-		angleDiff[1] = gl_aimbot_target_angles[1] - angles[1];
-		angleDiff[2] = gl_aimbot_target_angles[2] - angles[2];
-		
-		// Normalize angle differences
-		if( angleDiff[0] > 180.0f ) angleDiff[0] -= 360.0f;
-		if( angleDiff[0] < -180.0f ) angleDiff[0] += 360.0f;
-		if( angleDiff[1] > 180.0f ) angleDiff[1] -= 360.0f;
-		if( angleDiff[1] < -180.0f ) angleDiff[1] += 360.0f;
-		if( angleDiff[2] > 180.0f ) angleDiff[2] -= 360.0f;
-		if( angleDiff[2] < -180.0f ) angleDiff[2] += 360.0f;
-		
-		// Apply a small portion of the difference to avoid jitter
-		// This provides smooth aimbot movement without the visual glitches
-		float aimbotSpeed = 0.3f; // Adjust this value to control aimbot speed (0.0 = slow, 1.0 = instant)
-		angles[0] += angleDiff[0] * aimbotSpeed;
-		angles[1] += angleDiff[1] * aimbotSpeed;
-		angles[2] += angleDiff[2] * aimbotSpeed;
-		
-		// Normalize the resulting angles
-		if( angles[0] > 89.0f ) angles[0] = 89.0f;
-		if( angles[0] < -89.0f ) angles[0] = -89.0f;
-		if( angles[1] > 180.0f ) angles[1] -= 360.0f;
-		if( angles[1] < -180.0f ) angles[1] += 360.0f;
-		if( angles[2] > 180.0f ) angles[2] -= 360.0f;
-		if( angles[2] < -180.0f ) angles[2] += 360.0f;
+		vec3_t target_angles;
+		// Get the target angles from the renderer module
+		if( ref.dllFuncs.R_GetAimbotTargetAngles && ref.dllFuncs.R_GetAimbotTargetAngles( target_angles ) )
+		{
+			// Calculate the difference between current viewangles and target angles
+			vec3_t angleDiff;
+			angleDiff[0] = target_angles[0] - angles[0];
+			angleDiff[1] = target_angles[1] - angles[1];
+			angleDiff[2] = target_angles[2] - angles[2];
+			
+			// Normalize angle differences
+			if( angleDiff[0] > 180.0f ) angleDiff[0] -= 360.0f;
+			if( angleDiff[0] < -180.0f ) angleDiff[0] += 360.0f;
+			if( angleDiff[1] > 180.0f ) angleDiff[1] -= 360.0f;
+			if( angleDiff[1] < -180.0f ) angleDiff[1] += 360.0f;
+			if( angleDiff[2] > 180.0f ) angleDiff[2] -= 360.0f;
+			if( angleDiff[2] < -180.0f ) angleDiff[2] += 360.0f;
+			
+			// Apply a small portion of the difference to avoid jitter
+			// This provides smooth aimbot movement without the visual glitches
+			float aimbotSpeed = 0.3f; // Adjust this value to control aimbot speed (0.0 = slow, 1.0 = instant)
+			angles[0] += angleDiff[0] * aimbotSpeed;
+			angles[1] += angleDiff[1] * aimbotSpeed;
+			angles[2] += angleDiff[2] * aimbotSpeed;
+			
+			// Normalize the resulting angles
+			if( angles[0] > 89.0f ) angles[0] = 89.0f;
+			if( angles[0] < -89.0f ) angles[0] = -89.0f;
+			if( angles[1] > 180.0f ) angles[1] -= 360.0f;
+			if( angles[1] < -180.0f ) angles[1] += 360.0f;
+			if( angles[2] > 180.0f ) angles[2] -= 360.0f;
+			if( angles[2] < -180.0f ) angles[2] += 360.0f;
+		}
 	}
 
 	CL_PopPMStates();
