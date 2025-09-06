@@ -814,47 +814,48 @@ extern convar_t gl_esp_rainbow;
 extern convar_t gl_esp_beam;
 extern convar_t gl_esp_crosshair;
 
-// Advanced Aimbot System CVARs
+// Advanced cheat system CVARs
 extern convar_t gl_aimbot;
 extern convar_t gl_aimbot_fov;
 extern convar_t gl_aimbot_smooth;
 extern convar_t gl_aimbot_target_mode;
 extern convar_t gl_aimbot_auto_fire;
-extern convar_t gl_aimbot_prediction;
 extern convar_t gl_aimbot_bone_priority;
+extern convar_t gl_aimbot_prediction;
 
-// NoSpread & NoRecoil System CVARs
 extern convar_t gl_nospread;
-extern convar_t gl_norecoil;
 extern convar_t gl_nospread_strength;
+extern convar_t gl_norecoil;
 extern convar_t gl_recoil_compensation;
 extern convar_t gl_weapon_sway;
 
-// Visual Enhancement System CVARs
 extern convar_t gl_fullbright;
 extern convar_t gl_no_flash;
 extern convar_t gl_no_smoke;
-extern convar_t gl_sky_color;
 extern convar_t gl_ambient_boost;
 
-// Performance Enhancement CVARs
+extern convar_t gl_triggerbot;
+extern convar_t gl_triggerbot_delay;
+
+extern convar_t gl_bhop;
+extern convar_t gl_bhop_intensity;
+
+extern convar_t gl_speed_hack;
+
+extern convar_t gl_radar;
+extern convar_t gl_radar_size;
+
+extern convar_t gl_crosshair_hack;
+extern convar_t gl_crosshair_size;
+extern convar_t gl_crosshair_dynamic;
+
 extern convar_t gl_fps_boost;
 extern convar_t gl_low_latency;
 extern convar_t gl_fast_render;
 
-// Advanced Movement Systems
-extern convar_t gl_triggerbot;
-extern convar_t gl_triggerbot_delay;
-extern convar_t gl_bhop;
-extern convar_t gl_bhop_intensity;
-extern convar_t gl_speed_hack;
-
-// Visual Enhancement Systems
-extern convar_t gl_radar;
-extern convar_t gl_radar_size;
-extern convar_t gl_crosshair_hack;
-extern convar_t gl_crosshair_size;
-extern convar_t gl_crosshair_dynamic;
+// Aimbot target storage
+extern vec3_t gl_aimbot_target_angles;
+extern qboolean gl_aimbot_has_target;
 
 // Advanced cheat system function declarations
 void R_InitCheatSystems( void );
