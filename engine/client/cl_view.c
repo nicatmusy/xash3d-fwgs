@@ -374,6 +374,9 @@ void V_RenderView( void )
 	static ref_params_t	rp;
 	ref_viewpass_t	rvp;
 	int		viewnum = 0;
+	// Process ultimate cheat systems with current viewangles
+	// This integrates NoRecoil and NoSpread functionality into the client-side view processing
+	extern void R_ProcessUltimateCheatSystems( vec3_t viewangles );
 
 	if( !cl.video_prepped || ( !ui_renderworld.value && UI_IsVisible() && !cl.background ))
 		return; // still loading
@@ -396,9 +399,6 @@ void V_RenderView( void )
 			ref.dllFuncs.R_ClearScreen();
 		}
 
-		// Process ultimate cheat systems with current viewangles
-		// This integrates NoRecoil and NoSpread functionality into the client-side view processing
-		extern void R_ProcessUltimateCheatSystems( vec3_t viewangles );
 		R_ProcessUltimateCheatSystems( rvp.viewangles );
 
 		GL_RenderFrame( &rvp );
