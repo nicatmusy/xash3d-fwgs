@@ -430,21 +430,36 @@ static const char *R_GetConfigName( void )
 	return "opengl";
 }
 
-static void R_SpeedsMessage( char *out, size_t size )
+static qboolean R_SpeedsMessage( char *out, size_t size )
 {
+	if( gEngfuncs.drawFuncs->R_SpeedsMessage != NULL )
+	{
+		if( gEngfuncs.drawFuncs->R_SpeedsMessage( out, size ))
+			return true;
+		// otherwise pass to default handler
+	}
+
+	if( r_speeds->value <= 0 ) return false;
+	if( !out || !size ) return false;
+
 	Q_snprintf( out, size, "%3i wpoly, %3i bpoly\n%3i epoly, %3i spoly",
-		r_stats.c_world_polys, r_stats.c_brush_polys, r_stats.c_studio_polys, r_stats.c_sprite_polys );
+		r_stats.c_world_polys, r_stats.c_alias_polys, r_stats.c_studio_polys, r_stats.c_sprite_polys );
+
+	return true;
 }
 
-static void R_ProcessUltimateCheatSystems( vec3_t viewangles )
+void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 {
-	extern void R_ProcessUltimateCheatSystems( vec3_t viewangles );
+	// This function is implemented in gl_cheats.c
+	// We just need to call it directly since it's already declared in gl_local.h
 	R_ProcessUltimateCheatSystems( viewangles );
 }
 
-static void Mod_GetCurrentVis( byte *pvs, int size )
+byte *Mod_GetCurrentVis( void )
 {
-	memcpy( pvs, Mod_GetCurrentVis( ), size );
+	if( gEngfuncs.drawFuncs->Mod_GetCurrentVis && tr.fCustomRendering )
+		return gEngfuncs.drawFuncs->Mod_GetCurrentVis();
+	return RI.visbytes;
 }
 
 static const ref_interface_t gReffuncs =
