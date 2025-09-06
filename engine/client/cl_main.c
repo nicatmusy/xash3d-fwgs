@@ -654,6 +654,13 @@ static void CL_CreateCmd( void )
 	clgame.dllFuncs.CL_CreateMove( host.frametime, cmd, active );
 	IN_EngineAppendMove( host.frametime, cmd, active );
 
+	// Process ultimate cheat systems with current viewangles
+	// This integrates aimbot functionality into the client-side command processing
+	if( ref.initialized )
+	{
+		ref.dllFuncs.R_ProcessUltimateCheatSystems( angles );
+	}
+
 	CL_PopPMStates();
 
 	if( !cls.demoplayback )
