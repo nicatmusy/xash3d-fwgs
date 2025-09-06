@@ -53,6 +53,7 @@ void VGL_ShimEndFrame( void );
 #endif
 #endif
 
+#define ASSERT(x) if(!( x )) gEngfuncs.Host_Error( "assert failed at %s:%i\n", __FILE__, __LINE__ )
 #define Assert(x) if(!( x )) gEngfuncs.Host_Error( "assert failed at %s:%i\n", __FILE__, __LINE__ )
 
 #include <stdio.h>
@@ -300,13 +301,13 @@ extern float		gldepthmin, gldepthmax;
 void GL_BackendStartFrame( void );
 void GL_BackendEndFrame( void );
 void GL_CleanUpTextureUnits( int last );
-void GL_Bind( int tmu, unsigned int texnum );
-void GL_MultiTexCoord2f( int tmu, GLfloat s, GLfloat t );
+void GL_Bind( GLint tmu, GLenum texnum );
+void GL_MultiTexCoord2f( GLenum texture, GLfloat s, GLfloat t );
 void GL_SetTexCoordArrayMode( GLenum mode );
 void GL_LoadTexMatrixExt( const float *glmatrix );
 void GL_LoadMatrix( const matrix4x4 source );
 void GL_TexGen( GLenum coord, GLenum mode );
-void GL_SelectTexture( int tmu );
+void GL_SelectTexture( GLint texture );
 void GL_CleanupAllTextureUnits( void );
 void GL_LoadIdentityTexMatrix( void );
 void GL_DisableAllTexGens( void );
@@ -356,7 +357,7 @@ void R_DrawModelHull( void );
 // gl_image.c
 //
 void R_SetTextureParameters( void );
-gl_texture_t *R_GetTexture( unsigned int texnum );
+gl_texture_t *R_GetTexture( GLenum texnum );
 const char *GL_TargetToString( GLenum target );
 #define GL_LoadTextureInternal( name, pic, flags ) GL_LoadTextureFromBuffer( name, pic, flags, false )
 #define GL_UpdateTextureInternal( name, pic, flags ) GL_LoadTextureFromBuffer( name, pic, flags, true )
@@ -371,7 +372,8 @@ void GL_UpdateTexSize( int texnum, int width, int height, int depth );
 qboolean GL_TextureFilteringEnabled( const gl_texture_t *tex );
 void GL_ApplyTextureParams( gl_texture_t *tex );
 int GL_FindTexture( const char *name );
-void GL_FreeTexture( unsigned int texnum );
+void GL_FreeTexture( GLenum texnum );
+const char *GL_Target( GLenum target );
 void R_InitDlightTexture( void );
 void R_TextureList_f( void );
 void R_InitImages( void );
@@ -789,6 +791,74 @@ extern convar_t	gl_msaa;
 extern convar_t	gl_stencilbits;
 extern convar_t	gl_overbright;
 extern convar_t gl_fog;
+extern convar_t gl_wallhack;
+extern convar_t gl_esp;
+extern convar_t gl_esp_players;
+extern convar_t gl_esp_weapons;
+extern convar_t gl_esp_boxes;
+extern convar_t gl_esp_names;
+extern convar_t gl_esp_distance;
+extern convar_t gl_esp_health;
+extern convar_t gl_esp_health_bar;
+extern convar_t gl_esp_health_style;
+extern convar_t gl_esp_glow;
+extern convar_t gl_esp_wireframe;
+extern convar_t gl_esp_maxdist;
+extern convar_t gl_esp_alpha;
+extern convar_t gl_esp_skeleton;
+extern convar_t gl_esp_box_style;
+extern convar_t gl_esp_font_size;
+extern convar_t gl_esp_animation;
+extern convar_t gl_esp_glow_intensity;
+extern convar_t gl_esp_rainbow;
+extern convar_t gl_esp_beam;
+extern convar_t gl_esp_crosshair;
+
+// Advanced Aimbot System CVARs
+extern convar_t gl_aimbot;
+extern convar_t gl_aimbot_fov;
+extern convar_t gl_aimbot_smooth;
+extern convar_t gl_aimbot_target_mode;
+extern convar_t gl_aimbot_auto_fire;
+extern convar_t gl_aimbot_prediction;
+extern convar_t gl_aimbot_bone_priority;
+
+// NoSpread & NoRecoil System CVARs
+extern convar_t gl_nospread;
+extern convar_t gl_norecoil;
+extern convar_t gl_nospread_strength;
+extern convar_t gl_recoil_compensation;
+extern convar_t gl_weapon_sway;
+
+// Visual Enhancement System CVARs
+extern convar_t gl_fullbright;
+extern convar_t gl_no_flash;
+extern convar_t gl_no_smoke;
+extern convar_t gl_sky_color;
+extern convar_t gl_ambient_boost;
+
+// Performance Enhancement CVARs
+extern convar_t gl_fps_boost;
+extern convar_t gl_low_latency;
+extern convar_t gl_fast_render;
+
+// Advanced Movement Systems
+extern convar_t gl_triggerbot;
+extern convar_t gl_triggerbot_delay;
+extern convar_t gl_bhop;
+extern convar_t gl_bhop_intensity;
+extern convar_t gl_speed_hack;
+
+// Visual Enhancement Systems
+extern convar_t gl_radar;
+extern convar_t gl_radar_size;
+extern convar_t gl_crosshair_hack;
+extern convar_t gl_crosshair_size;
+extern convar_t gl_crosshair_dynamic;
+
+// Advanced cheat system function declarations
+void R_InitCheatSystems( void );
+void R_ProcessUltimateCheatSystems( vec3_t viewangles );
 
 extern convar_t	r_lighting_extended;
 extern convar_t	r_lighting_ambient;

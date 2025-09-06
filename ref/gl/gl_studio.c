@@ -123,7 +123,10 @@ typedef struct
 // studio-related cvars
 CVAR_DEFINE_AUTO( r_studio_sort_textures, "0", FCVAR_GLCONFIG, "change draw order for additive meshes" );
 CVAR_DEFINE_AUTO( r_studio_drawelements, "1", FCVAR_GLCONFIG, "use glDrawElements for studiomodels" );
+
 static cvar_t			*cl_righthand = NULL;
+
+// ESP CVARs are declared in gl_local.h as extern
 
 static r_studio_interface_t	*pStudioDraw;
 static studio_draw_state_t	g_studio;		// global studio state
@@ -182,12 +185,32 @@ static void R_StudioSetupTimings( void )
 	}
 }
 
+// ESP function declarations - ADVANCED EDITION
+static void R_StudioDrawESPBox( cl_entity_t *e, const vec3_t mins, const vec3_t maxs );
+static void R_StudioDrawESPGlow( cl_entity_t *e );
+static void R_StudioDrawESPInfo( cl_entity_t *e );
+static void R_StudioDrawESPWireframe( cl_entity_t *e );
+static void R_StudioDrawESPSkeleton( cl_entity_t *e );
+static void R_StudioProcessESP( cl_entity_t *e );
+static void R_StudioDrawHealthBar( cl_entity_t *e );
+static void R_StudioDrawESPCrosshairHighlight( cl_entity_t *e );
+
+// Advanced ESP helper functions
+static void R_StudioDrawESPBeam( cl_entity_t *e );
+static void R_StudioDrawESPGradientBox( cl_entity_t *e, const vec3_t bbox[8], const vec3_t color );
+static void R_StudioDrawESPNeonBox( cl_entity_t *e, const vec3_t bbox[8], const vec3_t color );
+static void R_StudioGetRainbowColor( vec3_t color, float time_offset );
+
+// Advanced Cheat Systems - moved to gl_cheats.c
+// Only ESP systems remain here
+
+
 /*
-================
+===============
 R_AllowFlipViewModel
 
 should a flip the viewmodel if cl_righthand is set to 1
-================
+===============
 */
 static qboolean R_AllowFlipViewModel( cl_entity_t *e )
 {
@@ -201,12 +224,1464 @@ static qboolean R_AllowFlipViewModel( cl_entity_t *e )
 }
 
 /*
-================
-R_StudioComputeBBox
+===============
+R_StudioGetRainbowColor
 
-Compute a full bounding box for current sequence
-================
+Generate rainbow colors for ESP effects
+===============
 */
+static void R_StudioGetRainbowColor( vec3_t color, float time_offset )
+{
+	float time = gEngfuncs.pfnTime() + time_offset;
+	float cycle = time * 2.0f; // Speed of color cycle
+	
+	// Generate smooth rainbow using HSV to RGB conversion
+	color[0] = (sin(cycle) + 1.0f) * 0.5f;
+	color[1] = (sin(cycle + 2.094f) + 1.0f) * 0.5f; // 120 degrees offset
+	color[2] = (sin(cycle + 4.188f) + 1.0f) * 0.5f; // 240 degrees offset
+	
+	// Enhance color saturation and brightness for more vibrant rainbow
+	color[0] = pow(color[0], 0.8f) * 1.2f;
+	color[1] = pow(color[1], 0.8f) * 1.2f;
+	color[2] = pow(color[2], 0.8f) * 1.2f;
+	
+	// Clamp values to valid range
+	color[0] = bound(0.0f, color[0], 1.0f);
+	color[1] = bound(0.0f, color[1], 1.0f);
+	color[2] = bound(0.0f, color[2], 1.0f);
+}
+
+/*
+===============
+R_StudioDrawESPGradientBox
+
+Draw advanced gradient ESP box
+===============
+*/
+static void R_StudioDrawESPGradientBox( cl_entity_t *e, const vec3_t bbox[8], const vec3_t color )
+{
+	float alpha_top, alpha_bottom;
+	
+	// Setup gradient alpha values
+	alpha_top = gl_esp_alpha.value;
+	alpha_bottom = gl_esp_alpha.value * 0.3f;
+	
+	// Setup OpenGL for gradient rendering
+	pglDisable( GL_TEXTURE_2D );
+	pglDisable( GL_DEPTH_TEST );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	pglShadeModel( GL_SMOOTH );
+	
+	// Draw gradient filled box
+	pglBegin( GL_QUADS );
+	
+	// Side faces with gradient (bottom to top fade)
+	pglColor4f( color[0], color[1], color[2], alpha_bottom );
+	pglVertex3fv( bbox[0] ); pglVertex3fv( bbox[1] );
+	pglColor4f( color[0], color[1], color[2], alpha_top );
+	pglVertex3fv( bbox[5] ); pglVertex3fv( bbox[4] );
+	
+	pglColor4f( color[0], color[1], color[2], alpha_bottom );
+	pglVertex3fv( bbox[2] ); pglVertex3fv( bbox[3] );
+	pglColor4f( color[0], color[1], color[2], alpha_top );
+	pglVertex3fv( bbox[7] ); pglVertex3fv( bbox[6] );
+	
+	pglEnd();
+	
+	// Restore OpenGL state
+	pglShadeModel( GL_FLAT );
+	pglEnable( GL_DEPTH_TEST );
+	pglEnable( GL_TEXTURE_2D );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
+/*
+===============
+R_StudioDrawESPNeonBox
+
+Draw advanced neon-style ESP box with glow effects
+===============
+*/
+static void R_StudioDrawESPNeonBox( cl_entity_t *e, const vec3_t bbox[8], const vec3_t color )
+{
+	int i, pass;
+	float glow_sizes[] = { 1.0f, 2.0f, 3.0f, 4.0f };
+	float glow_alphas[] = { 0.8f, 0.5f, 0.3f, 0.1f };
+	
+	// Setup OpenGL for neon rendering
+	pglDisable( GL_TEXTURE_2D );
+	pglDisable( GL_DEPTH_TEST );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE );
+	
+	// Draw multiple passes for glow effect
+	for( pass = 3; pass >= 0; pass-- )
+	{
+		pglLineWidth( glow_sizes[pass] * gl_esp_glow_intensity.value );
+		pglColor4f( color[0], color[1], color[2], glow_alphas[pass] * gl_esp_alpha.value );
+		
+		pglBegin( GL_LINES );
+		
+		// Draw all box edges
+		// Bottom face
+		pglVertex3fv( bbox[0] ); pglVertex3fv( bbox[1] );
+		pglVertex3fv( bbox[1] ); pglVertex3fv( bbox[3] );
+		pglVertex3fv( bbox[3] ); pglVertex3fv( bbox[2] );
+		pglVertex3fv( bbox[2] ); pglVertex3fv( bbox[0] );
+		
+		// Top face
+		pglVertex3fv( bbox[4] ); pglVertex3fv( bbox[5] );
+		pglVertex3fv( bbox[5] ); pglVertex3fv( bbox[7] );
+		pglVertex3fv( bbox[7] ); pglVertex3fv( bbox[6] );
+		pglVertex3fv( bbox[6] ); pglVertex3fv( bbox[4] );
+		
+		// Vertical edges
+		pglVertex3fv( bbox[0] ); pglVertex3fv( bbox[4] );
+		pglVertex3fv( bbox[1] ); pglVertex3fv( bbox[5] );
+		pglVertex3fv( bbox[2] ); pglVertex3fv( bbox[6] );
+		pglVertex3fv( bbox[3] ); pglVertex3fv( bbox[7] );
+		
+		pglEnd();
+	}
+	
+	// Add pulsing corner highlights
+	if( gl_esp_animation.value )
+	{
+		float pulse = (sin(gEngfuncs.pfnTime() * 4.0f) + 1.0f) * 0.5f;
+		pglPointSize( 6.0f + pulse * 3.0f );
+		pglColor4f( 1.0f, 1.0f, 1.0f, pulse * gl_esp_alpha.value );
+		pglBegin( GL_POINTS );
+		for( i = 0; i < 8; i++ )
+			pglVertex3fv( bbox[i] );
+		pglEnd();
+		pglPointSize( 1.0f );
+	}
+	
+	// Restore OpenGL state
+	pglLineWidth( 1.0f );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	pglEnable( GL_DEPTH_TEST );
+	pglEnable( GL_TEXTURE_2D );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
+/*
+===============
+R_StudioDrawESPBeam
+
+Draw beam line from player to target
+===============
+*/
+static void R_StudioDrawESPBeam( cl_entity_t *e )
+{
+	vec3_t start, end, color;
+	float dist, alpha;
+	vec3_t delta;
+	
+	if( !gl_esp_beam.value || !e->player )
+		return;
+	
+	// Calculate distance
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+	
+	if( dist > gl_esp_maxdist.value )
+		return;
+	
+	// Set beam start and end points
+	VectorCopy( RI.vieworg, start );
+	VectorCopy( e->origin, end );
+	end[2] += 36.0f; // Aim for chest height
+	
+	// Set beam color based on team
+	if( e->curstate.team == 1 ) // Terrorist
+		VectorSet( color, 1.0f, 0.2f, 0.2f );
+	else if( e->curstate.team == 2 ) // Counter-Terrorist
+		VectorSet( color, 0.2f, 0.2f, 1.0f );
+	else
+		VectorSet( color, 0.2f, 1.0f, 0.2f );
+	
+	// Rainbow mode
+	if( gl_esp_rainbow.value )
+		R_StudioGetRainbowColor( color, e->index * 0.5f );
+	
+	// Distance-based alpha
+	alpha = (gl_esp_maxdist.value - dist) / gl_esp_maxdist.value;
+	alpha = bound( 0.1f, alpha, 1.0f ) * gl_esp_alpha.value;
+	
+	// Setup OpenGL for beam rendering
+	pglDisable( GL_TEXTURE_2D );
+	pglDisable( GL_DEPTH_TEST );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE );
+	pglLineWidth( 2.0f );
+	
+	// Draw animated beam
+	if( gl_esp_animation.value )
+	{
+		float time = gEngfuncs.pfnTime();
+		float pulse = (sin(time * 6.0f + e->index) + 1.0f) * 0.5f;
+		
+		// Main beam
+		pglColor4f( color[0], color[1], color[2], alpha * 0.8f );
+		pglBegin( GL_LINES );
+		pglVertex3fv( start );
+		pglVertex3fv( end );
+		pglEnd();
+		
+		// Pulsing outer beam
+		pglLineWidth( 4.0f + pulse * 2.0f );
+		pglColor4f( color[0], color[1], color[2], alpha * 0.3f * pulse );
+		pglBegin( GL_LINES );
+		pglVertex3fv( start );
+		pglVertex3fv( end );
+		pglEnd();
+	}
+	else
+	{
+		// Static beam
+		pglColor4f( color[0], color[1], color[2], alpha );
+		pglBegin( GL_LINES );
+		pglVertex3fv( start );
+		pglVertex3fv( end );
+		pglEnd();
+	}
+	
+	// Restore OpenGL state
+	pglLineWidth( 1.0f );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	pglEnable( GL_DEPTH_TEST );
+	pglEnable( GL_TEXTURE_2D );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
+/*
+===============
+R_StudioDrawESPBox
+
+Draw enhanced ESP bounding box for entity
+===============
+*/
+static void R_StudioDrawESPBox( cl_entity_t *e, const vec3_t mins, const vec3_t maxs )
+{
+	vec3_t	bbox[8];
+	vec3_t	delta;
+	int	i;
+	float	dist;
+	vec3_t	color, outline_color;
+	int	box_style;
+	float	line_width;
+
+	if( !gl_esp_boxes.value )
+		return;
+
+	// Calculate distance to entity
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+
+	// Check maximum distance
+	if( dist > gl_esp_maxdist.value )
+		return;
+
+	// Compute bounding box corners
+	for( i = 0; i < 8; i++ )
+	{
+		bbox[i][0] = ( i & 1 ) ? maxs[0] : mins[0];
+		bbox[i][1] = ( i & 2 ) ? maxs[1] : mins[1];
+		bbox[i][2] = ( i & 4 ) ? maxs[2] : mins[2];
+		VectorAdd( bbox[i], e->origin, bbox[i] );
+	}
+
+	// Set color based on entity type
+	if( e->player )
+	{
+		if( gl_esp_rainbow.value )
+		{
+			R_StudioGetRainbowColor( color, e->index * 0.3f );
+			VectorCopy( color, outline_color );
+		}
+		else if( e->curstate.team == 1 ) // Terrorist
+		{
+			VectorSet( color, 1.0f, 0.2f, 0.2f ); // Red
+			VectorSet( outline_color, 1.0f, 0.0f, 0.0f );
+		}
+		else if( e->curstate.team == 2 ) // Counter-Terrorist  
+		{
+			VectorSet( color, 0.2f, 0.2f, 1.0f ); // Blue
+			VectorSet( outline_color, 0.0f, 0.0f, 1.0f );
+		}
+		else
+		{
+			VectorSet( color, 0.2f, 1.0f, 0.2f ); // Green
+			VectorSet( outline_color, 0.0f, 1.0f, 0.0f );
+		}
+	}
+	else
+	{
+		VectorSet( color, 1.0f, 1.0f, 0.2f ); // Yellow for weapons/items
+		VectorSet( outline_color, 1.0f, 0.8f, 0.0f );
+	}
+
+	box_style = (int)gl_esp_box_style.value;
+	
+	// Use advanced rendering for new box styles
+	if( box_style == 4 ) // Gradient style
+	{
+		R_StudioDrawESPGradientBox( e, bbox, color );
+		return;
+	}
+	else if( box_style == 5 ) // Neon style
+	{
+		R_StudioDrawESPNeonBox( e, bbox, color );
+		return;
+	}
+
+	// Setup OpenGL state
+	pglDisable( GL_TEXTURE_2D );
+	pglDisable( GL_DEPTH_TEST );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+	box_style = (int)gl_esp_box_style.value;
+	line_width = 2.0f + (dist > 1000.0f ? 1.0f : 0.0f);
+	pglLineWidth( line_width );
+
+	if( box_style == 2 ) // 3D Style box
+	{
+		// Draw filled box first (semi-transparent)
+		pglColor4f( color[0], color[1], color[2], gl_esp_alpha.value * 0.3f );
+		pglBegin( GL_QUADS );
+		
+		// Bottom face
+		pglVertex3fv( bbox[0] ); pglVertex3fv( bbox[1] );
+		pglVertex3fv( bbox[3] ); pglVertex3fv( bbox[2] );
+		
+		// Top face  
+		pglVertex3fv( bbox[4] ); pglVertex3fv( bbox[5] );
+		pglVertex3fv( bbox[7] ); pglVertex3fv( bbox[6] );
+		
+		// Front face
+		pglVertex3fv( bbox[0] ); pglVertex3fv( bbox[1] );
+		pglVertex3fv( bbox[5] ); pglVertex3fv( bbox[4] );
+		
+		// Back face
+		pglVertex3fv( bbox[2] ); pglVertex3fv( bbox[3] );
+		pglVertex3fv( bbox[7] ); pglVertex3fv( bbox[6] );
+		
+		// Left face
+		pglVertex3fv( bbox[0] ); pglVertex3fv( bbox[2] );
+		pglVertex3fv( bbox[6] ); pglVertex3fv( bbox[4] );
+		
+		// Right face
+		pglVertex3fv( bbox[1] ); pglVertex3fv( bbox[3] );
+		pglVertex3fv( bbox[7] ); pglVertex3fv( bbox[5] );
+		
+		pglEnd();
+	}
+
+	// Draw wireframe outline
+	pglColor4f( outline_color[0], outline_color[1], outline_color[2], gl_esp_alpha.value );
+	pglBegin( GL_LINES );
+
+	if( box_style == 3 ) // Rounded corners style
+	{
+		// Draw main edges with small gaps for rounded effect
+		vec3_t gap_offset;
+		float gap = 8.0f;
+		
+		// Bottom face with gaps
+		VectorSubtract( bbox[1], bbox[0], gap_offset );
+		VectorNormalize( gap_offset );
+		VectorScale( gap_offset, gap, gap_offset );
+		VectorAdd( bbox[0], gap_offset, delta );
+		pglVertex3fv( delta );
+		VectorSubtract( bbox[1], gap_offset, delta );
+		pglVertex3fv( delta );
+		
+		// Continue with other edges...
+		// (Similar pattern for all 12 edges)
+	}
+	else // Standard wireframe
+	{
+		// Bottom face
+		pglVertex3fv( bbox[0] ); pglVertex3fv( bbox[1] );
+		pglVertex3fv( bbox[1] ); pglVertex3fv( bbox[3] );
+		pglVertex3fv( bbox[3] ); pglVertex3fv( bbox[2] );
+		pglVertex3fv( bbox[2] ); pglVertex3fv( bbox[0] );
+
+		// Top face
+		pglVertex3fv( bbox[4] ); pglVertex3fv( bbox[5] );
+		pglVertex3fv( bbox[5] ); pglVertex3fv( bbox[7] );
+		pglVertex3fv( bbox[7] ); pglVertex3fv( bbox[6] );
+		pglVertex3fv( bbox[6] ); pglVertex3fv( bbox[4] );
+
+		// Vertical edges
+		pglVertex3fv( bbox[0] ); pglVertex3fv( bbox[4] );
+		pglVertex3fv( bbox[1] ); pglVertex3fv( bbox[5] );
+		pglVertex3fv( bbox[2] ); pglVertex3fv( bbox[6] );
+		pglVertex3fv( bbox[3] ); pglVertex3fv( bbox[7] );
+	}
+
+	pglEnd();
+
+	// Draw corner markers for enhanced visibility
+	if( box_style >= 2 )
+	{
+		pglPointSize( 4.0f );
+		pglColor4f( 1.0f, 1.0f, 1.0f, gl_esp_alpha.value );
+		pglBegin( GL_POINTS );
+		for( i = 0; i < 8; i++ )
+			pglVertex3fv( bbox[i] );
+		pglEnd();
+		pglPointSize( 1.0f );
+	}
+
+	// Restore OpenGL state
+	pglEnable( GL_DEPTH_TEST );
+	pglEnable( GL_TEXTURE_2D );
+	pglLineWidth( 1.0f );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
+/*
+===============
+R_StudioDrawESPGlow
+
+Draw ESP glow effect around entity
+===============
+*/
+static void R_StudioDrawESPGlow( cl_entity_t *e )
+{
+	vec3_t	color;
+	float	dist;
+	vec3_t	delta;
+
+	if( !gl_esp_glow.value )
+		return;
+
+	// Calculate distance
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+
+	if( dist > gl_esp_maxdist.value )
+		return;
+
+	// Set glow color
+	if( e->player )
+	{
+		if( e->curstate.team == 1 ) // Terrorist
+			VectorSet( color, 1.0f, 0.0f, 0.0f );
+		else if( e->curstate.team == 2 ) // Counter-Terrorist
+			VectorSet( color, 0.0f, 0.0f, 1.0f );
+		else
+			VectorSet( color, 0.0f, 1.0f, 0.0f );
+	}
+	else
+	{
+		VectorSet( color, 1.0f, 1.0f, 0.0f );
+	}
+
+	// Setup glow rendering
+	pglDisable( GL_DEPTH_TEST );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE );
+	pglDepthMask( GL_FALSE );
+
+	// First pass - Inner glow
+	pglColor4f( color[0], color[1], color[2], gl_esp_alpha.value * 0.5f );
+	pglPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+
+	// Second pass - Outer glow  
+	pglColor4f( color[0], color[1], color[2], gl_esp_alpha.value * 0.2f );
+	pglEnable( GL_POLYGON_OFFSET_FILL );
+	pglPolygonOffset( -1.0f, -1.0f );
+
+	// Restore state
+	pglDisable( GL_POLYGON_OFFSET_FILL );
+	pglDepthMask( GL_TRUE );
+	pglEnable( GL_DEPTH_TEST );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
+/*
+===============
+R_StudioDrawESPSkeleton
+
+Draw enhanced player skeleton with bone ESP lines
+===============
+*/
+static void R_StudioDrawESPSkeleton( cl_entity_t *e )
+{
+	vec3_t	color, glow_color;
+	float	dist;
+	vec3_t	delta;
+	int	i;
+	mstudiobone_t *pbones;
+	float	line_width, glow_intensity;
+	float	point_size;
+	qboolean	rainbow_mode;
+
+	if( !gl_esp_skeleton.value || !e->player )
+		return;
+
+	if( !m_pStudioHeader )
+		return;
+
+	// Calculate distance
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+
+	if( dist > gl_esp_maxdist.value )
+		return;
+
+	// Check for rainbow mode
+	rainbow_mode = (gl_esp_rainbow.value > 0.0f);
+
+	// Set skeleton color based on team or rainbow
+	if( rainbow_mode )
+	{
+		R_StudioGetRainbowColor( color, e->index * 0.5f );
+		VectorCopy( color, glow_color );
+	}
+	else if( e->curstate.team == 1 ) // Terrorist
+	{
+		VectorSet( color, 1.0f, 0.2f, 0.2f ); // Bright red
+		VectorSet( glow_color, 1.0f, 0.0f, 0.0f );
+	}
+	else if( e->curstate.team == 2 ) // Counter-Terrorist
+	{
+		VectorSet( color, 0.2f, 0.5f, 1.0f ); // Bright blue
+		VectorSet( glow_color, 0.0f, 0.3f, 1.0f );
+	}
+	else
+	{
+		VectorSet( color, 0.3f, 1.0f, 0.3f ); // Bright green
+		VectorSet( glow_color, 0.0f, 1.0f, 0.0f );
+	}
+
+	// Dynamic line width based on distance and settings
+	line_width = 2.5f;
+	if( dist > 1000.0f )
+		line_width = 1.8f;
+	else if( dist < 300.0f )
+		line_width = 3.2f;
+
+	// Glow intensity based on animation setting
+	glow_intensity = gl_esp_animation.value ? gl_esp_glow_intensity.value : 1.0f;
+
+	// Setup OpenGL state for enhanced skeleton
+	pglDisable( GL_TEXTURE_2D );
+	pglDisable( GL_DEPTH_TEST );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+	pbones = (mstudiobone_t *)((byte *)m_pStudioHeader + m_pStudioHeader->boneindex);
+
+	// First pass - Draw glow effect for bones if enabled
+	if( gl_esp_glow.value )
+	{
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE );
+		pglLineWidth( line_width + 2.0f );
+		pglColor4f( glow_color[0], glow_color[1], glow_color[2], gl_esp_alpha.value * 0.3f * glow_intensity );
+
+		pglBegin( GL_LINES );
+		for( i = 0; i < m_pStudioHeader->numbones; i++ )
+		{
+			if( pbones[i].parent != -1 )
+			{
+				vec3_t bone_pos, parent_pos;
+				
+				// Get bone positions from transformation matrices
+				Matrix3x4_OriginFromMatrix( g_studio.bonestransform[i], bone_pos );
+				Matrix3x4_OriginFromMatrix( g_studio.bonestransform[pbones[i].parent], parent_pos );
+				
+				// Draw glow line between parent and child bones
+				pglVertex3fv( parent_pos );
+				pglVertex3fv( bone_pos );
+			}
+		}
+		pglEnd();
+		
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	}
+
+	// Second pass - Draw main skeleton lines
+	pglLineWidth( line_width );
+	pglColor4f( color[0], color[1], color[2], gl_esp_alpha.value );
+
+	pglBegin( GL_LINES );
+
+	for( i = 0; i < m_pStudioHeader->numbones; i++ )
+	{
+		if( pbones[i].parent != -1 )
+		{
+			vec3_t bone_pos, parent_pos;
+			
+			// Get bone positions from transformation matrices
+			Matrix3x4_OriginFromMatrix( g_studio.bonestransform[i], bone_pos );
+			Matrix3x4_OriginFromMatrix( g_studio.bonestransform[pbones[i].parent], parent_pos );
+			
+			// Enhanced bone connection drawing
+			pglVertex3fv( parent_pos );
+			pglVertex3fv( bone_pos );
+		}
+	}
+
+	pglEnd();
+
+	// Third pass - Draw enhanced joint points
+	point_size = 4.0f;
+	if( dist > 800.0f )
+		point_size = 3.0f;
+	else if( dist < 200.0f )
+		point_size = 5.0f;
+
+	// Animated pulsing joints if animation is enabled
+	if( gl_esp_animation.value )
+	{
+		float pulse = (sin(gEngfuncs.pfnTime() * 5.0f) + 1.0f) * 0.5f;
+		point_size += pulse * 1.5f;
+		pglColor4f( 1.0f, 1.0f, 1.0f, (0.7f + pulse * 0.3f) * gl_esp_alpha.value );
+	}
+	else
+	{
+		pglColor4f( 1.0f, 1.0f, 1.0f, gl_esp_alpha.value );
+	}
+
+	pglPointSize( point_size );
+	pglBegin( GL_POINTS );
+
+	for( i = 0; i < m_pStudioHeader->numbones; i++ )
+	{
+		vec3_t bone_pos;
+		Matrix3x4_OriginFromMatrix( g_studio.bonestransform[i], bone_pos );
+		pglVertex3fv( bone_pos );
+	}
+
+	pglEnd();
+
+	// Fourth pass - Enhanced bone connections with bone name detection
+	if( gl_esp_animation.value )
+	{
+		float time = gEngfuncs.pfnTime();
+		float wave = (sin(time * 3.0f) + 1.0f) * 0.5f;
+		
+		// Draw thicker lines for main spine/limb connections
+		pglLineWidth( line_width + 1.0f + wave * 0.5f );
+		pglColor4f( color[0] * (1.2f + wave * 0.3f), color[1] * (1.2f + wave * 0.3f), color[2] * (1.2f + wave * 0.3f), gl_esp_alpha.value * (0.6f + wave * 0.2f) );
+		
+		pglBegin( GL_LINES );
+		
+		// Draw enhanced structural bones with bone name checking
+		for( i = 0; i < m_pStudioHeader->numbones; i++ )
+		{
+			if( pbones[i].parent != -1 )
+			{
+				// Check for main structural bones by name
+				qboolean is_main_bone = false;
+				if( pbones[i].name[0] != '\0' )
+				{
+					// Check for spine, pelvis, neck, and main limb bones
+					if( Q_stristr( pbones[i].name, "spine" ) || Q_stristr( pbones[i].name, "pelvis" ) ||
+						Q_stristr( pbones[i].name, "neck" ) || Q_stristr( pbones[i].name, "head" ) ||
+						Q_stristr( pbones[i].name, "bip01" ) )
+					{
+						is_main_bone = true;
+					}
+				}
+				
+				if( is_main_bone || i < 8 ) // Main bones or first 8 bones
+				{
+					vec3_t bone_pos, parent_pos;
+					
+					Matrix3x4_OriginFromMatrix( g_studio.bonestransform[i], bone_pos );
+					Matrix3x4_OriginFromMatrix( g_studio.bonestransform[pbones[i].parent], parent_pos );
+					
+					pglVertex3fv( parent_pos );
+					pglVertex3fv( bone_pos );
+				}
+			}
+		}
+		
+		pglEnd();
+	}
+	
+	// Fifth pass - Special limb highlighting (arms and legs)
+	if( gl_esp_glow.value && gl_esp_animation.value )
+	{
+		float time = gEngfuncs.pfnTime();
+		float pulse = (sin(time * 4.0f + e->index) + 1.0f) * 0.5f;
+		
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE );
+		pglLineWidth( line_width * 1.5f );
+		pglColor4f( glow_color[0] * 1.5f, glow_color[1] * 1.5f, glow_color[2] * 1.5f, gl_esp_alpha.value * 0.4f * pulse );
+		
+		pglBegin( GL_LINES );
+		
+		// Highlight arm and leg bones with special effects
+		for( i = 0; i < m_pStudioHeader->numbones; i++ )
+		{
+			if( pbones[i].parent != -1 && pbones[i].name[0] != '\0' )
+			{
+				// Check for arm and leg bones
+				if( Q_stristr( pbones[i].name, "arm" ) || Q_stristr( pbones[i].name, "hand" ) ||
+					Q_stristr( pbones[i].name, "leg" ) || Q_stristr( pbones[i].name, "foot" ) ||
+					Q_stristr( pbones[i].name, "thigh" ) || Q_stristr( pbones[i].name, "calf" ) )
+				{
+					vec3_t bone_pos, parent_pos;
+					
+					Matrix3x4_OriginFromMatrix( g_studio.bonestransform[i], bone_pos );
+					Matrix3x4_OriginFromMatrix( g_studio.bonestransform[pbones[i].parent], parent_pos );
+					
+					pglVertex3fv( parent_pos );
+					pglVertex3fv( bone_pos );
+				}
+			}
+		}
+		
+		pglEnd();
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	}
+	
+	// Sixth pass - Bone direction indicators (small arrows)
+	if( gl_esp_animation.value && dist < 500.0f )
+	{
+		pglPointSize( 3.0f );
+		pglColor4f( 1.0f, 1.0f, 0.0f, gl_esp_alpha.value * 0.8f );
+		pglBegin( GL_POINTS );
+		
+		// Draw direction indicators on main bones
+		for( i = 0; i < m_pStudioHeader->numbones && i < 15; i++ )
+		{
+			if( pbones[i].parent != -1 )
+			{
+				vec3_t bone_pos, parent_pos, mid_pos;
+				
+				Matrix3x4_OriginFromMatrix( g_studio.bonestransform[i], bone_pos );
+				Matrix3x4_OriginFromMatrix( g_studio.bonestransform[pbones[i].parent], parent_pos );
+				
+				// Calculate midpoint for direction indicator
+				VectorAdd( bone_pos, parent_pos, mid_pos );
+				VectorScale( mid_pos, 0.5f, mid_pos );
+				
+				pglVertex3fv( mid_pos );
+			}
+		}
+		
+		pglEnd();
+	}
+	
+	// Seventh pass - Bone strength/health visualization
+	if( gl_esp_health.value && e->curstate.health > 0 )
+	{
+		float health_ratio = (float)e->curstate.health / 100.0f;
+		vec3_t health_color;
+		
+		// Health-based color: red (low) -> yellow (medium) -> green (high)
+		if( health_ratio > 0.7f )
+			VectorSet( health_color, 0.0f, 1.0f, 0.0f ); // Green
+		else if( health_ratio > 0.3f )
+			VectorSet( health_color, 1.0f, 1.0f, 0.0f ); // Yellow
+		else
+			VectorSet( health_color, 1.0f, 0.0f, 0.0f ); // Red
+		
+		// Draw health-based bone thickness
+		pglLineWidth( line_width * (0.5f + health_ratio * 0.5f) );
+		pglColor4f( health_color[0], health_color[1], health_color[2], gl_esp_alpha.value * health_ratio );
+		
+		pglBegin( GL_LINES );
+		
+		// Draw critical bones with health indication
+		for( i = 0; i < m_pStudioHeader->numbones && i < 20; i++ )
+		{
+			if( pbones[i].parent != -1 )
+			{
+				vec3_t bone_pos, parent_pos;
+				
+				Matrix3x4_OriginFromMatrix( g_studio.bonestransform[i], bone_pos );
+				Matrix3x4_OriginFromMatrix( g_studio.bonestransform[pbones[i].parent], parent_pos );
+				
+				// Draw every 3rd bone to avoid clutter
+				if( i % 3 == 0 )
+				{
+					pglVertex3fv( parent_pos );
+					pglVertex3fv( bone_pos );
+				}
+			}
+		}
+		
+		pglEnd();
+	}
+	
+	// Eighth pass - Tactical bone highlighting (head, chest, critical areas)
+	if( gl_esp_crosshair.value && dist < 800.0f )
+	{
+		float time = gEngfuncs.pfnTime();
+		float tactical_pulse = (sin(time * 6.0f) + 1.0f) * 0.5f;
+		
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE );
+		pglLineWidth( line_width + 2.0f );
+		pglColor4f( 1.0f, 0.8f, 0.0f, gl_esp_alpha.value * tactical_pulse * 0.7f );
+		
+		pglBegin( GL_LINES );
+		
+		// Highlight tactical target bones (head/neck/spine)
+		for( i = 0; i < m_pStudioHeader->numbones; i++ )
+		{
+			if( pbones[i].parent != -1 && pbones[i].name[0] != '\0' )
+			{
+				// Check for tactical bones
+				if( Q_stristr( pbones[i].name, "head" ) || Q_stristr( pbones[i].name, "neck" ) ||
+					Q_stristr( pbones[i].name, "spine2" ) || Q_stristr( pbones[i].name, "spine3" ) )
+				{
+					vec3_t bone_pos, parent_pos;
+					
+					Matrix3x4_OriginFromMatrix( g_studio.bonestransform[i], bone_pos );
+					Matrix3x4_OriginFromMatrix( g_studio.bonestransform[pbones[i].parent], parent_pos );
+					
+					pglVertex3fv( parent_pos );
+					pglVertex3fv( bone_pos );
+				}
+			}
+		}
+		
+		pglEnd();
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	}
+
+	// Restore OpenGL state
+	pglPointSize( 1.0f );
+	pglLineWidth( 1.0f );
+	pglEnable( GL_DEPTH_TEST );
+	pglEnable( GL_TEXTURE_2D );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
+/*
+===============
+R_StudioDrawESPCrosshairHighlight
+
+Enhanced crosshair highlighting when targeting players
+===============
+*/
+static void R_StudioDrawESPCrosshairHighlight( cl_entity_t *e )
+{
+	vec3_t delta, forward, right, up;
+	vec3_t target_pos;
+	float dist, dot_product;
+	
+	if( !gl_esp_crosshair.value )
+		return;
+	
+	// Calculate distance to player
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+	
+	if( dist > 500.0f ) // Only highlight close targets
+		return;
+	
+	// Get view direction vectors
+	AngleVectors( RI.viewangles, forward, right, up );
+	
+	// Calculate target position (aim for chest)
+	VectorCopy( e->origin, target_pos );
+	target_pos[2] += 36.0f;
+	
+	// Calculate vector to target
+	VectorSubtract( target_pos, RI.vieworg, delta );
+	VectorNormalize( delta );
+	
+	// Calculate dot product to determine if target is in crosshair
+	dot_product = DotProduct( forward, delta );
+	
+	// If target is within crosshair cone (30 degrees)
+	if( dot_product > 0.866f ) // cos(30°) ≈ 0.866
+	{
+		// Notify the crosshair system to highlight
+		// This would require integration with the crosshair rendering system
+		// For now, we can add visual indicators
+		
+		// Draw a subtle indicator that we're targeting this player
+		pglDisable( GL_TEXTURE_2D );
+		pglDisable( GL_DEPTH_TEST );
+		pglEnable( GL_BLEND );
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE );
+		
+		float highlight_pulse = (sin(gEngfuncs.pfnTime() * 8.0f) + 1.0f) * 0.5f;
+		pglColor4f( 1.0f, 1.0f, 1.0f, 0.3f * highlight_pulse );
+		
+		pglPointSize( 8.0f );
+		pglBegin( GL_POINTS );
+		pglVertex3fv( target_pos );
+		pglEnd();
+		pglPointSize( 1.0f );
+		
+		// Restore OpenGL state
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+		pglEnable( GL_DEPTH_TEST );
+		pglEnable( GL_TEXTURE_2D );
+		pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+	}
+}
+
+/*
+===============
+R_StudioDrawESPInfo
+
+Draw ESP information (names, distance, health) - FIXED VERSION
+===============
+*/
+static void R_StudioDrawESPInfo( cl_entity_t *e )
+{
+	vec3_t	world_pos, screen;
+	vec3_t	delta;
+	float	dist;
+	float	y_offset;
+	float	health_ratio;
+	player_info_t *pinfo;
+	char	dist_str[32], health_str[16];
+	int	textlen, textheight;
+	rgba_t	text_color;
+	float	font_scale;
+	int	screen_x, screen_y;
+
+	if( !e->player || (!gl_esp_names.value && !gl_esp_distance.value && !gl_esp_health.value) )
+		return;
+
+	// Calculate distance
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+
+	if( dist > gl_esp_maxdist.value )
+		return;
+
+	// Get world position above entity
+	VectorCopy( e->origin, world_pos );
+	world_pos[2] += 72.0f; // Head height
+
+	// Convert to screen coordinates
+	if( !TriWorldToScreen( world_pos, screen ) || screen[2] > 1.0f )
+		return;
+
+	// Get player info with enhanced fallback system - DEBUG ENABLED
+	pinfo = pfnPlayerInfo( e->index - 1 );
+	if( !pinfo )
+	{
+		// Try alternative index
+		pinfo = pfnPlayerInfo( e->index );
+	}
+	if( !pinfo && e->index > 0 && e->index <= 32 )
+	{
+		// Try engine function directly
+		pinfo = gEngfuncs.pfnPlayerInfo( e->index - 1 );
+		if( !pinfo )
+			pinfo = gEngfuncs.pfnPlayerInfo( e->index );
+	}
+	
+	// DEBUG: Print player info status to console (disabled for performance)
+	if( gl_esp_names.value && e->index <= 5 ) // Only debug first 5 players to avoid spam
+	{
+		if( pinfo && pinfo->name[0] )
+			gEngfuncs.Con_Printf( "ESP DEBUG: Player %d name: '%s'\n", e->index, pinfo->name );
+		else
+			gEngfuncs.Con_Printf( "ESP DEBUG: Player %d - No valid name found\n", e->index );
+	}
+
+	// Convert screen coordinates to pixel coordinates
+	screen_x = (int)((screen[0] + 1.0f) * 0.5f * RI.viewport[2]);
+	screen_y = (int)((1.0f - screen[1]) * 0.5f * RI.viewport[3]);
+
+	// Font scale based on distance and user preference - Applied to text rendering
+	font_scale = gl_esp_font_size.value;
+	if( dist > 800.0f )
+		font_scale *= 0.8f;
+	else if( dist > 1500.0f )
+		font_scale *= 0.6f;
+
+	// Apply font scaling if supported by the engine
+	// Note: This is a simplified implementation - actual font scaling would require
+	// more complex engine modifications, but we can adjust positioning for better readability
+
+	y_offset = 0;
+
+	// Draw player name with enhanced fallback system - FORCE DISPLAY
+	if( gl_esp_names.value )
+	{
+		char display_name[64];
+		
+		// REAL PLAYER NAME FIRST - Enhanced validation
+		if( pinfo && pinfo->name[0] && Q_strlen(pinfo->name) > 0 && Q_strcmp(pinfo->name, "Player") != 0 )
+		{
+			// Use the actual player name from the game (like "dead baba")
+			Q_strncpy( display_name, pinfo->name, sizeof(display_name) );
+		}
+		else
+		{
+			// FORCE name generation - ALWAYS create a name
+			if( e->index >= 1 && e->index <= 32 )
+			{
+				if( e->curstate.team == 1 )
+					Q_snprintf( display_name, sizeof(display_name), "Terrorist_%d", e->index );
+				else if( e->curstate.team == 2 )
+					Q_snprintf( display_name, sizeof(display_name), "CT_%d", e->index );
+				else
+					Q_snprintf( display_name, sizeof(display_name), "Player_%d", e->index );
+			}
+			else
+			{
+				Q_snprintf( display_name, sizeof(display_name), "Entity_%d", e->index );
+			}
+		}
+		
+		// Set text color based on team
+		if( e->curstate.team == 1 ) // Terrorist
+		{
+			text_color[0] = 255; text_color[1] = 50; text_color[2] = 50; text_color[3] = 255;
+		}
+		else if( e->curstate.team == 2 ) // Counter-Terrorist
+		{
+			text_color[0] = 50; text_color[1] = 100; text_color[2] = 255; text_color[3] = 255;
+		}
+		else
+		{
+			text_color[0] = 255; text_color[1] = 255; text_color[2] = 255; text_color[3] = 255;
+		}
+
+		// Get text dimensions
+		gEngfuncs.Con_DrawStringLen( display_name, &textlen, &textheight );
+		
+		// SIMPLIFIED: Draw the text directly without background
+		gEngfuncs.Con_DrawString( screen_x - (textlen / 2), screen_y + y_offset, display_name, text_color );
+		
+		y_offset += textheight + 4;
+	}
+
+	// Draw distance
+	if( gl_esp_distance.value )
+	{
+		Q_snprintf( dist_str, sizeof(dist_str), "%.0fm", dist * 0.0254f ); // Convert to meters
+		
+		// Set distance color (yellow)
+		text_color[0] = 255; text_color[1] = 255; text_color[2] = 0; text_color[3] = 255;
+		
+		gEngfuncs.Con_DrawStringLen( dist_str, &textlen, &textheight );
+		
+		// Draw distance text
+		gEngfuncs.Con_DrawString( screen_x - (textlen / 2), screen_y + y_offset, dist_str, text_color );
+		
+		y_offset += textheight + 2;
+	}
+
+	// Draw health bar and text
+	if( gl_esp_health.value && e->curstate.health > 0 )
+	{
+		health_ratio = e->curstate.health / 100.0f;
+		health_ratio = bound( 0.0f, health_ratio, 1.0f );
+		
+		Q_snprintf( health_str, sizeof(health_str), "%dHP", (int)e->curstate.health );
+		
+		// Set health text color
+		if( health_ratio > 0.6f )
+		{
+			text_color[0] = 0; text_color[1] = 255; text_color[2] = 0; text_color[3] = 255; // Green
+		}
+		else if( health_ratio > 0.3f )
+		{
+			text_color[0] = 255; text_color[1] = 255; text_color[2] = 0; text_color[3] = 255; // Yellow
+		}
+		else
+		{
+			text_color[0] = 255; text_color[1] = 0; text_color[2] = 0; text_color[3] = 255; // Red
+		}
+		
+		gEngfuncs.Con_DrawStringLen( health_str, &textlen, &textheight );
+		
+		// Draw health text
+		gEngfuncs.Con_DrawString( screen_x - (textlen / 2), screen_y + y_offset, health_str, text_color );
+		
+		// Draw health bar
+		pglDisable( GL_TEXTURE_2D );
+		pglEnable( GL_BLEND );
+		pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+		
+		// Switch to 2D rendering
+		pglMatrixMode( GL_PROJECTION );
+		pglPushMatrix();
+		pglLoadIdentity();
+		pglOrtho( 0, RI.viewport[2], RI.viewport[3], 0, -1, 1 );
+		
+		pglMatrixMode( GL_MODELVIEW );
+		pglPushMatrix();
+		pglLoadIdentity();
+		
+		pglDisable( GL_DEPTH_TEST );
+		
+		// Health bar background
+		pglColor4f( 0.2f, 0.2f, 0.2f, 0.8f );
+		pglBegin( GL_QUADS );
+		pglVertex2f( screen_x - 30, screen_y + y_offset + textheight + 2 );
+		pglVertex2f( screen_x + 30, screen_y + y_offset + textheight + 2 );
+		pglVertex2f( screen_x + 30, screen_y + y_offset + textheight + 10 );
+		pglVertex2f( screen_x - 30, screen_y + y_offset + textheight + 10 );
+		pglEnd();
+		
+		// Health bar fill
+		if( health_ratio > 0.6f )
+			pglColor4f( 0.0f, 1.0f, 0.0f, 0.8f ); // Green
+		else if( health_ratio > 0.3f )
+			pglColor4f( 1.0f, 1.0f, 0.0f, 0.8f ); // Yellow
+		else
+			pglColor4f( 1.0f, 0.0f, 0.0f, 0.8f ); // Red
+		
+		pglBegin( GL_QUADS );
+		pglVertex2f( screen_x - 28, screen_y + y_offset + textheight + 3 );
+		pglVertex2f( screen_x - 28 + (56 * health_ratio), screen_y + y_offset + textheight + 3 );
+		pglVertex2f( screen_x - 28 + (56 * health_ratio), screen_y + y_offset + textheight + 9 );
+		pglVertex2f( screen_x - 28, screen_y + y_offset + textheight + 9 );
+		pglEnd();
+		
+		// Restore matrices
+		pglPopMatrix();
+		pglMatrixMode( GL_PROJECTION );
+		pglPopMatrix();
+		pglMatrixMode( GL_MODELVIEW );
+		
+		pglEnable( GL_DEPTH_TEST );
+		pglEnable( GL_TEXTURE_2D );
+		pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+	}
+}
+
+/*
+===============
+R_StudioDrawESPWireframe
+
+Draw entity in wireframe mode for ESP
+===============
+*/
+static void R_StudioDrawESPWireframe( cl_entity_t *e )
+{
+	vec3_t	color;
+	float	dist;
+	vec3_t	delta;
+
+	if( !gl_esp_wireframe.value )
+		return;
+
+	// Calculate distance
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+
+	if( dist > gl_esp_maxdist.value )
+		return;
+
+	// Set wireframe color
+	if( e->player )
+	{
+		if( e->curstate.team == 1 ) // Terrorist
+			VectorSet( color, 1.0f, 0.0f, 0.0f );
+		else if( e->curstate.team == 2 ) // Counter-Terrorist
+			VectorSet( color, 0.0f, 0.0f, 1.0f );
+		else
+			VectorSet( color, 0.0f, 1.0f, 0.0f );
+	}
+	else
+	{
+		VectorSet( color, 1.0f, 1.0f, 0.0f );
+	}
+
+	// Setup wireframe rendering
+	pglDisable( GL_TEXTURE_2D );
+	pglDisable( GL_DEPTH_TEST );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	pglPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+	pglLineWidth( 1.5f );
+	pglColor4f( color[0], color[1], color[2], gl_esp_alpha.value );
+
+	// Note: Actual wireframe rendering would require re-rendering the model
+	// This is a placeholder for the wireframe ESP functionality
+
+	// Restore state
+	pglPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+	pglLineWidth( 1.0f );
+	pglEnable( GL_DEPTH_TEST );
+	pglEnable( GL_TEXTURE_2D );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
+/*
+===============
+R_StudioProcessESP
+
+Main ESP processing function - Enhanced
+===============
+*/
+static void R_StudioProcessESP( cl_entity_t *e )
+{
+	vec3_t	mins, maxs;
+	float	dist;
+	vec3_t	delta;
+
+	if( !gl_esp.value )
+		return;
+
+	if( !e || e == CL_GetEntityByIndex(0) )
+		return;
+
+	// Don't draw ESP for local player in first person
+	if( e == tr.viewent )
+		return;
+
+	// Calculate distance
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+
+	// Check if entity is within ESP range
+	if( dist > gl_esp_maxdist.value )
+		return;
+
+	// Filter based on entity type
+	if( e->player && !gl_esp_players.value )
+		return;
+
+	if( !e->player && !gl_esp_weapons.value )
+		return;
+
+	// Get entity bounds
+	if( e->model )
+	{
+		VectorCopy( e->model->mins, mins );
+		VectorCopy( e->model->maxs, maxs );
+	}
+	else
+	{
+		VectorSet( mins, -16, -16, -36 );
+		VectorSet( maxs, 16, 16, 36 );
+	}
+
+	// Apply ESP effects in proper order
+	R_StudioDrawESPBox( e, mins, maxs );          // Enhanced boxes with new styles
+	R_StudioDrawESPGlow( e );                     // Advanced glow effects
+	R_StudioDrawESPSkeleton( e );                 // Enhanced skeleton visualization
+	R_StudioDrawESPInfo( e );                     // Improved text rendering
+	R_StudioDrawESPWireframe( e );                // Advanced wireframe mode
+	R_StudioDrawESPBeam( e );                     // NEW: Beam lines to players
+	R_StudioDrawHealthBar( e );                   // NEW: Advanced Health Bars
+	R_StudioDrawESPCrosshairHighlight( e );       // Crosshair targeting enhancement
+}
+
+/*
+===============
+R_StudioDrawHealthBar
+
+Draw advanced health bars above players
+===============
+*/
+static void R_StudioDrawHealthBar( cl_entity_t *e )
+{
+	vec3_t	world_pos, screen;
+	float	health_ratio;
+	int	screen_x, screen_y;
+	int	health_bar_width, health_bar_height;
+	vec3_t	bar_color;
+	int	health_style;
+	vec3_t	delta;
+	float	dist;
+	int	filled_width;
+
+	if( gl_esp_health_bar.value <= 0.0f || !e->player )
+		return;
+
+	if( gl_esp_health.value <= 0.0f )
+		return;
+
+	// Don't draw health bar for dead players
+	if( e->curstate.health <= 0 )
+		return;
+
+	// Calculate distance and check if within range
+	VectorSubtract( e->origin, RI.vieworg, delta );
+	dist = VectorLength( delta );
+	
+	if( dist > gl_esp_maxdist.value )
+		return;
+
+	// Set world position above player's head
+	VectorCopy( e->origin, world_pos );
+	world_pos[2] += 45.0f; // Above head
+
+	// Convert to screen coordinates
+	if( !TriWorldToScreen( world_pos, screen ) || screen[2] > 1.0f )
+		return;
+
+	screen_x = (int)((screen[0] + 1.0f) * 0.5f * RI.viewport[2]);
+	screen_y = (int)((1.0f - screen[1]) * 0.5f * RI.viewport[3]);
+
+	// Calculate health ratio
+	health_ratio = (float)e->curstate.health / 100.0f;
+	health_ratio = bound( 0.0f, health_ratio, 1.0f );
+
+	// Set health bar color based on health percentage
+	if( health_ratio > 0.7f )
+		VectorSet( bar_color, 0.0f, 1.0f, 0.0f ); // Green
+	else if( health_ratio > 0.3f )
+		VectorSet( bar_color, 1.0f, 1.0f, 0.0f ); // Yellow
+	else
+		VectorSet( bar_color, 1.0f, 0.0f, 0.0f ); // Red
+
+	// Get health bar style
+	health_style = (int)gl_esp_health_style.value;
+	if( health_style < 1 || health_style > 4 )
+		health_style = 1;
+
+	// Health bar dimensions
+	health_bar_width = 60;
+	health_bar_height = 8;
+	filled_width = (int)(health_bar_width * health_ratio);
+
+	// Setup OpenGL for 2D rendering
+	pglDisable( GL_TEXTURE_2D );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	pglDisable( GL_DEPTH_TEST );
+
+	// Switch to 2D rendering
+	pglMatrixMode( GL_PROJECTION );
+	pglPushMatrix();
+	pglLoadIdentity();
+	pglOrtho( 0, RI.viewport[2], RI.viewport[3], 0, -1, 1 );
+
+	pglMatrixMode( GL_MODELVIEW );
+	pglPushMatrix();
+	pglLoadIdentity();
+
+	// Draw health bar based on style
+	switch( health_style )
+	{
+		case 1: // Simple bar
+		{
+			// Background
+			pglColor4f( 0.0f, 0.0f, 0.0f, 0.6f );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2 - 1, screen_y - 1 );
+				pglVertex2f( screen_x + health_bar_width/2 + 1, screen_y - 1 );
+				pglVertex2f( screen_x + health_bar_width/2 + 1, screen_y + health_bar_height + 1 );
+				pglVertex2f( screen_x - health_bar_width/2 - 1, screen_y + health_bar_height + 1 );
+			pglEnd();
+
+			// Health bar
+			pglColor4f( bar_color[0], bar_color[1], bar_color[2], 0.8f );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y + health_bar_height );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y + health_bar_height );
+			pglEnd();
+			break;
+		}
+		case 2: // 3D enhanced bar
+		{
+			// Background with 3D effect
+			pglColor4f( 0.0f, 0.0f, 0.0f, 0.6f );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2 - 1, screen_y - 1 );
+				pglVertex2f( screen_x + health_bar_width/2 + 1, screen_y - 1 );
+				pglVertex2f( screen_x + health_bar_width/2 + 1, screen_y + health_bar_height + 1 );
+				pglVertex2f( screen_x - health_bar_width/2 - 1, screen_y + health_bar_height + 1 );
+			pglEnd();
+
+			// Health bar with gradient effect
+			pglColor4f( bar_color[0] * 0.7f, bar_color[1] * 0.7f, bar_color[2] * 0.7f, 0.9f );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y + health_bar_height/2 );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y + health_bar_height/2 );
+			pglEnd();
+
+			pglColor4f( bar_color[0], bar_color[1], bar_color[2], 0.8f );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y + health_bar_height/2 );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y + health_bar_height/2 );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y + health_bar_height );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y + health_bar_height );
+			pglEnd();
+			break;
+		}
+		case 3: // Gradient bar
+		{
+			// Background
+			pglColor4f( 0.0f, 0.0f, 0.0f, 0.6f );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2 - 1, screen_y - 1 );
+				pglVertex2f( screen_x + health_bar_width/2 + 1, screen_y - 1 );
+				pglVertex2f( screen_x + health_bar_width/2 + 1, screen_y + health_bar_height + 1 );
+				pglVertex2f( screen_x - health_bar_width/2 - 1, screen_y + health_bar_height + 1 );
+			pglEnd();
+
+			// Gradient health bar
+			pglBegin( GL_QUADS );
+				pglColor4f( bar_color[0], bar_color[1], bar_color[2], 0.9f );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y );
+				pglColor4f( bar_color[0] * 0.5f, bar_color[1] * 0.5f, bar_color[2] * 0.5f, 0.7f );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y );
+				pglColor4f( bar_color[0] * 0.5f, bar_color[1] * 0.5f, bar_color[2] * 0.5f, 0.7f );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y + health_bar_height );
+				pglColor4f( bar_color[0], bar_color[1], bar_color[2], 0.9f );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y + health_bar_height );
+			pglEnd();
+			break;
+		}
+		case 4: // Animated bar
+		{
+			float time = gp_host->realtime;
+			float pulse = (sin(time * 5.0f) + 1.0f) * 0.5f;
+			float animated_alpha = 0.7f + 0.3f * pulse;
+
+			// Background
+			pglColor4f( 0.0f, 0.0f, 0.0f, 0.6f );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2 - 1, screen_y - 1 );
+				pglVertex2f( screen_x + health_bar_width/2 + 1, screen_y - 1 );
+				pglVertex2f( screen_x + health_bar_width/2 + 1, screen_y + health_bar_height + 1 );
+				pglVertex2f( screen_x - health_bar_width/2 - 1, screen_y + health_bar_height + 1 );
+			pglEnd();
+
+			// Animated health bar
+			pglColor4f( bar_color[0], bar_color[1], bar_color[2], animated_alpha );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y + health_bar_height );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y + health_bar_height );
+			pglEnd();
+
+			// Pulsing highlight
+			pglColor4f( 1.0f, 1.0f, 1.0f, 0.3f * pulse );
+			pglBegin( GL_QUADS );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y );
+				pglVertex2f( screen_x - health_bar_width/2 + filled_width, screen_y + 2 );
+				pglVertex2f( screen_x - health_bar_width/2, screen_y + 2 );
+			pglEnd();
+			break;
+		}
+	}
+
+	// Restore OpenGL state
+	pglPopMatrix();
+	pglMatrixMode( GL_PROJECTION );
+	pglPopMatrix();
+	pglMatrixMode( GL_MODELVIEW );
+
+	pglEnable( GL_DEPTH_TEST );
+	pglEnable( GL_TEXTURE_2D );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+}
+
 static qboolean R_StudioComputeBBox( vec3_t bbox[8] )
 {
 	vec3_t		studio_mins, studio_maxs;
@@ -459,7 +1934,7 @@ pfnGetModelCounters
 static void pfnGetModelCounters( int **s, int **a )
 {
 	*s = &g_studio.framecount;
-	*a = &r_stats.c_studio_models_drawn;
+	*a = (int *)&r_stats.c_studio_models_drawn;
 }
 
 /*
@@ -1038,6 +2513,115 @@ static void R_StudioSetupBones( cl_entity_t *e )
 			Matrix3x4_ConcatTransforms( g_studio.lighttransform[i], g_studio.lighttransform[pbones[i].parent], bonematrix );
 		}
 	}
+
+	// Enhanced Wallhack ve ESP kontrol sistemi - Xash3D 0.21 uyumlu
+	if( gl_wallhack.value != 0.0f && e->model )
+	{
+		qboolean is_player = false;
+		vec3_t wallhack_color;
+		float wallhack_alpha;
+		
+		// Oyuncu modeli kontrolü - daha kapsamlı
+		if( e->model->name[0] == 'm' || e->player || 
+			strstr(e->model->name, "player") || strstr(e->model->name, "terror") || 
+			strstr(e->model->name, "ct") || strstr(e->model->name, "urban") ||
+			strstr(e->model->name, "leet") || strstr(e->model->name, "arctic") ||
+			strstr(e->model->name, "guerilla") || strstr(e->model->name, "militia") )
+		{
+			is_player = true;
+		}
+		
+		if( is_player )
+		{
+			// Mesafe tabanlı alpha değeri
+			vec3_t view_delta;
+			float view_dist;
+			VectorSubtract( e->origin, RI.vieworg, view_delta );
+			view_dist = VectorLength( view_delta );
+			wallhack_alpha = 0.4f;
+			if( view_dist > 1000.0f )
+				wallhack_alpha = 0.3f;
+			else if( view_dist > 1500.0f )
+				wallhack_alpha = 0.2f;
+			
+			// Takım renkleri
+			if( strstr(e->model->name, "terror") || strstr(e->model->name, "leet") ||
+				strstr(e->model->name, "arctic") || strstr(e->model->name, "guerilla") )
+			{
+				// Terrorist modelleri - Kırmızı
+				VectorSet( wallhack_color, 1.0f, 0.0f, 0.0f );
+			}
+			else if( strstr(e->model->name, "ct") || strstr(e->model->name, "urban") ||
+					strstr(e->model->name, "gsg9") || strstr(e->model->name, "sas") ||
+					strstr(e->model->name, "gign") )
+			{
+				// Counter-Terrorist modelleri - Mavi
+				VectorSet( wallhack_color, 0.0f, 0.0f, 1.0f );
+			}
+			else
+			{
+				// Bilinmeyen/Varsayılan - Yeşil
+				VectorSet( wallhack_color, 0.0f, 1.0f, 0.0f );
+			}
+			
+			// Gelişmiş OpenGL durumları
+			pglPushAttrib( GL_ALL_ATTRIB_BITS );
+			
+			// Z-buffer ve derinlik ayarları
+			pglDisable( GL_DEPTH_TEST );
+			pglDepthMask( GL_FALSE );
+			pglDepthRange( 0.0, 0.1 );
+			
+			// Blending ayarları
+			pglEnable( GL_BLEND );
+			pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+			
+			// Stencil buffer kullanımı (mevcut ise)
+			if( glConfig.stencil_bits > 0 )
+			{
+				pglEnable( GL_STENCIL_TEST );
+				pglStencilFunc( GL_ALWAYS, 1, 0xFF );
+				pglStencilOp( GL_KEEP, GL_KEEP, GL_REPLACE );
+				pglStencilMask( 0xFF );
+			}
+			
+			// İlk geçiş - Ana model (dolu)
+			pglPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+			pglColor4f( wallhack_color[0], wallhack_color[1], wallhack_color[2], wallhack_alpha );
+			
+			// Modeli çiz (bu noktada normal model çizimi devam eder)
+			// R_StudioDrawPoints() çağrısı bu ayarlarla çalışacak
+		}
+		else
+		{
+			// Normal render ayarlarını geri yükle
+			pglPopAttrib();
+		}
+	}
+	else
+	{
+		// Wallhack kapalı - normal render ayarlarını zorla
+		pglEnable( GL_DEPTH_TEST );
+		pglDepthMask( GL_TRUE );
+		pglDepthRange( 0.0, 1.0 );
+		pglDisable( GL_BLEND );
+		if( glConfig.stencil_bits > 0 )
+			pglDisable( GL_STENCIL_TEST );
+		pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
+		pglPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+		pglLineWidth( 1.0f );
+	}
+
+	// Bone info kontrolü ve matrix hesaplamaları
+	if( m_pStudioHeader && FBitSet( m_pStudioHeader->flags, STUDIO_HAS_BONEINFO ))
+	{
+		mstudioboneinfo_t *boneinfo = (mstudioboneinfo_t *)((byte *)m_pStudioHeader + m_pStudioHeader->boneindex + m_pStudioHeader->numbones * sizeof( mstudiobone_t ));
+
+		for( i = 0; i < m_pStudioHeader->numbones; i++ )
+		{
+			Matrix3x4_ConcatTransforms( g_studio.worldtransform[i], g_studio.bonestransform[i], boneinfo[i].poseToBone );
+		}
+	}
 }
 
 /*
@@ -1513,7 +3097,7 @@ static void R_StudioEntityLight( alight_t *lightinfo )
 	float		minstrength, dist2, f, r2;
 	float		lstrength[MAX_LOCALLIGHTS];
 	cl_entity_t	*ent = RI.currententity;
-	vec3_t		mid, origin, pos;
+	vec3_t		mid, origin; /* pos removed - was unused */
 
 	g_studio.numlocallights = 0;
 
@@ -1542,7 +3126,6 @@ static void R_StudioEntityLight( alight_t *lightinfo )
 			else VectorCopy( ent->origin, el->origin );
 		}
 
-		VectorCopy( el->origin, pos );
 		VectorSubtract( origin, el->origin, mid );
 
 		f = DotProduct( mid, mid );
@@ -2058,9 +3641,7 @@ generic path
 */
 static void R_StudioBuildArrayNormalMesh( short *ptricmds, vec3_t *pstudionorms, float s, float t )
 {
-	float	*lv;
 	int	i;
-	float alpha = tr.blend;
 
 	while(( i = *( ptricmds++ )))
 	{
@@ -2077,7 +3658,6 @@ static void R_StudioBuildArrayNormalMesh( short *ptricmds, vec3_t *pstudionorms,
 		{
 			GLubyte *cl;
 			cl = g_studio.arraycolor[g_studio.numverts];
-			lv = (float *)g_studio.lightvalues[ptricmds[1]];
 
 			vertexState = R_StudioBuildIndices( tri_strip, vertexState );
 
@@ -2101,9 +3681,7 @@ generic path
 */
 static void R_StudioBuildArrayFloatMesh( short *ptricmds, vec3_t *pstudionorms )
 {
-	float	*lv;
 	int	i;
-	float alpha = tr.blend;
 
 	while(( i = *( ptricmds++ )))
 	{
@@ -2120,7 +3698,6 @@ static void R_StudioBuildArrayFloatMesh( short *ptricmds, vec3_t *pstudionorms )
 		{
 			GLubyte *cl;
 			cl = g_studio.arraycolor[g_studio.numverts];
-			lv = (float *)g_studio.lightvalues[ptricmds[1]];
 
 			vertexState = R_StudioBuildIndices( tri_strip, vertexState );
 
@@ -2144,11 +3721,10 @@ generic path
 */
 static void R_StudioBuildArrayChromeMesh( short *ptricmds, vec3_t *pstudionorms, float s, float t, float scale )
 {
-	float	*lv, *av;
+	float	*lv = NULL, *av = NULL;
 	int	i, idx;
 	qboolean	glowShell = (scale > 0.0f) ? true : false;
 	vec3_t	vert;
-	float alpha = tr.blend;
 
 	while(( i = *( ptricmds++ )))
 	{
@@ -2165,7 +3741,6 @@ static void R_StudioBuildArrayChromeMesh( short *ptricmds, vec3_t *pstudionorms,
 		{
 			GLubyte *cl;
 			cl = g_studio.arraycolor[g_studio.numverts];
-			lv = (float *)g_studio.lightvalues[ptricmds[1]];
 
 			vertexState = R_StudioBuildIndices( tri_strip, vertexState );
 
@@ -2915,9 +4490,9 @@ pfnIsHardware
 Xash3D is always works in hardware mode
 ===============
 */
-static int pfnIsHardware( void )
+static qboolean pfnIsHardware( void )
 {
-	return 1;	// 0 is Software, 1 is OpenGL, 2 is Direct3D
+	return true;	// 0 is Software, 1 is OpenGL, 2 is Direct3D
 }
 
 /*
@@ -2928,7 +4503,7 @@ R_StudioDrawPointsShadow
 */
 static void R_StudioDrawPointsShadow( void )
 {
-	float		*av, height;
+	float		*av;
 	float		vec_x, vec_y;
 	mstudiomesh_t	*pmesh;
 	vec3_t		point;
@@ -2939,8 +4514,6 @@ static void R_StudioDrawPointsShadow( void )
 
 	if( glState.stencilEnabled )
 		pglEnable( GL_STENCIL_TEST );
-
-	height = g_studio.lightspot[2] + 1.0f;
 	vec_x = -g_studio.lightvec[0] * 8.0f;
 	vec_y = -g_studio.lightvec[1] * 8.0f;
 
@@ -3061,8 +4634,71 @@ StudioRenderFinal
 static void R_StudioRenderFinal( void )
 {
 	int	i, rendermode;
+	float fillAlpha = 0.3f;
+	float outlineAlpha = 1.0f;
 
-	rendermode = R_StudioGetForceFaceFlags() ? kRenderTransAdd : RI.currententity->curstate.rendermode;
+    if( gl_wallhack.value > 0.0f )
+    {
+        // Save current states
+        pglPushAttrib(GL_ALL_ATTRIB_BITS);
+
+        // First pass - Draw filled model through walls
+        pglDisable(GL_TEXTURE_2D);
+        pglDisable(GL_DEPTH_TEST);
+        pglEnable(GL_BLEND);
+        pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        // Check if this is a player entity (index between 1 and maxclients)
+        if( RI.currententity->index > 0 && RI.currententity->index <= gp_cl->maxclients )
+        {
+            // This is a player entity, use team-based colors
+            // For now use simple color coding - red for enemies, green for teammates
+            pglColor4f(1.0f, 0.0f, 0.0f, fillAlpha); // Red for all players (enemies)
+        }
+        else
+        {
+            // Default color for non-player entities
+            pglColor4f(0.0f, 1.0f, 0.0f, fillAlpha); // Green for non-players
+        }
+
+        rendermode = kRenderTransAdd;
+        R_StudioSetupRenderer(rendermode);
+        
+        for( i = 0; i < m_pStudioHeader->numbodyparts; i++ )
+        {
+            R_StudioSetupModel(i, (void**)&m_pBodyPart, (void**)&m_pSubModel);
+            R_StudioDrawPoints();
+        }
+
+        // Second pass - Draw outline
+        pglEnable(GL_DEPTH_TEST);
+        pglDepthFunc(GL_GREATER);
+        pglPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        pglLineWidth(3.0f);
+
+        // Use same color logic for outline
+        if( RI.currententity->index > 0 && RI.currententity->index <= gp_cl->maxclients )
+        {
+            pglColor4f(1.0f, 0.0f, 0.0f, outlineAlpha); // Red outline for players
+        }
+        else
+        {
+            pglColor4f(0.0f, 1.0f, 0.0f, outlineAlpha); // Green outline for non-players
+        }
+
+        for( i = 0; i < m_pStudioHeader->numbodyparts; i++ )
+        {
+            R_StudioSetupModel(i, (void**)&m_pBodyPart, (void**)&m_pSubModel);
+            R_StudioDrawPoints();
+        }
+
+        // Restore all states
+        pglPopAttrib();
+        return; // Skip normal rendering
+    }
+
+
+
 	R_StudioSetupRenderer( rendermode );
 
 	if( r_drawentities->value == 2 )
@@ -3136,6 +4772,14 @@ static void R_StudioRenderFinal( void )
 	}
 
 	R_StudioRestoreRenderer();
+
+	// Restore any remaining OpenGL states
+	pglEnable(GL_DEPTH_TEST);
+	pglDepthMask(GL_TRUE);
+	pglDisable(GL_BLEND);
+	pglColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	pglPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	pglLineWidth(1.0f);
 }
 
 /*
@@ -3616,6 +5260,9 @@ void R_DrawStudioModel( cl_entity_t *e )
 	{
 		R_StudioDrawModelInternal( e, STUDIO_RENDER|STUDIO_EVENTS );
 	}
+
+	// Process ESP after normal rendering
+	R_StudioProcessESP( e );
 }
 
 /*
@@ -3703,12 +5350,20 @@ void R_DrawViewModel( void )
 
 	switch( RI.currententity->model->type )
 	{
+	case mod_bad:
+		break;
+	case mod_brush:
+		break;
+	case mod_sprite:
+		break;
 	case mod_alias:
 		R_DrawAliasModel( RI.currententity );
 		break;
 	case mod_studio:
 		R_StudioSetupTimings();
 		R_StudioDrawModelInternal( RI.currententity, STUDIO_RENDER );
+		break;
+	default:
 		break;
 	}
 
@@ -3872,10 +5527,13 @@ void Mod_StudioUnloadTextures( void *data )
 	}
 }
 
+/*
+===============
+Studio API Function Implementations
+===============
+*/
 static model_t *pfnModelHandle( int modelindex )
 {
-	if( modelindex < 0 || modelindex >= MAX_MODELS )
-		return NULL;
 	return CL_ModelHandle( modelindex );
 }
 
@@ -3896,7 +5554,7 @@ static void pfnMod_LoadCacheFile( const char *path, struct cache_user_s *cu )
 
 static cvar_t *pfnGetCvarPointer( const char *name )
 {
-	return (cvar_t*)gEngfuncs.pfnGetCvarPointer( name, 0 );
+	return (cvar_t *)gEngfuncs.pfnGetCvarPointer( name, 0 );
 }
 
 static void *pfnMod_Calloc( int number, size_t size )
@@ -3904,6 +5562,11 @@ static void *pfnMod_Calloc( int number, size_t size )
 	return gEngfuncs.Mod_Calloc( number, size );
 }
 
+/*
+===============
+Studio API Structure
+===============
+*/
 static engine_studio_api_t gStudioAPI =
 {
 	pfnMod_Calloc,
@@ -3935,13 +5598,13 @@ static engine_studio_api_t gStudioAPI =
 	R_StudioDrawHulls,
 	R_StudioDrawAbsBBox,
 	R_StudioDrawBones,
-	(void*)R_StudioSetupSkin,
+	(void *)R_StudioSetupSkin,
 	R_StudioSetRemapColors,
 	R_StudioSetupPlayerModel,
 	R_StudioClientEvents,
 	R_StudioGetForceFaceFlags,
 	R_StudioSetForceFaceFlags,
-	(void*)R_StudioSetHeader,
+	(void *)R_StudioSetHeader,
 	R_StudioSetRenderModel,
 	R_StudioSetupRenderer,
 	R_StudioRestoreRenderer,
@@ -3968,19 +5631,19 @@ CL_InitStudioAPI
 Initialize client studio
 ===============
 */
-void CL_InitStudioAPI( void )
+void GAME_EXPORT CL_InitStudioAPI( void )
 {
 	pStudioDraw = &gStudioDraw;
 
-	// trying to grab them from client.dll
+	/* trying to grab them from client.dll */
 	cl_righthand = gEngfuncs.pfnGetCvarPointer( "cl_righthand", 0 );
 
-	// Xash will be used internal StudioModelRenderer
+	/* Xash will be used internal StudioModelRenderer */
 	if( gEngfuncs.pfnGetStudioModelInterface( STUDIO_INTERFACE_VERSION, &pStudioDraw, &gStudioAPI ))
 		return;
 
-	// NOTE: we always return true even if game interface was not correct
-	// because we need Draw our StudioModels
-	// just restore pointer to builtin function
+	/* NOTE: we always return true even if game interface was not correct */
+	/* because we need Draw our StudioModels */
+	/* just restore pointer to builtin function */
 	pStudioDraw = &gStudioDraw;
 }

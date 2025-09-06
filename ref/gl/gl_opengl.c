@@ -21,6 +21,70 @@ CVAR_DEFINE_AUTO( gl_msaa, "1", FCVAR_GLCONFIG, "enable or disable multisample a
 CVAR_DEFINE_AUTO( gl_stencilbits, "8", FCVAR_GLCONFIG|FCVAR_READ_ONLY, "pixelformat stencil bits (0 - auto)" );
 CVAR_DEFINE_AUTO( gl_overbright, "1", FCVAR_GLCONFIG, "overbrights" );
 CVAR_DEFINE_AUTO( gl_fog, "1", FCVAR_GLCONFIG, "allow for rendering fog using built-in OpenGL fog implementation" );
+CVAR_DEFINE_AUTO( gl_wallhack, "1", FCVAR_GLCONFIG, "allow for rendering fog using built-in OpenGL fog implementation" );
+CVAR_DEFINE_AUTO( gl_esp, "0", FCVAR_GLCONFIG, "enable ESP (Extra Sensory Perception) system" );
+CVAR_DEFINE_AUTO( gl_esp_players, "1", FCVAR_GLCONFIG, "draw ESP for players" );
+CVAR_DEFINE_AUTO( gl_esp_weapons, "1", FCVAR_GLCONFIG, "draw ESP for weapons" );
+CVAR_DEFINE_AUTO( gl_esp_boxes, "1", FCVAR_GLCONFIG, "draw bounding boxes around entities" );
+CVAR_DEFINE_AUTO( gl_esp_names, "1", FCVAR_GLCONFIG, "draw player names" );
+CVAR_DEFINE_AUTO( gl_esp_distance, "1", FCVAR_GLCONFIG, "draw distance to entities" );
+CVAR_DEFINE_AUTO( gl_esp_health, "1", FCVAR_GLCONFIG, "draw player health bars" );
+CVAR_DEFINE_AUTO( gl_esp_glow, "1", FCVAR_GLCONFIG, "enable entity glow effect" );
+CVAR_DEFINE_AUTO( gl_esp_wireframe, "0", FCVAR_GLCONFIG, "draw entities in wireframe mode" );
+CVAR_DEFINE_AUTO( gl_esp_maxdist, "2000", FCVAR_GLCONFIG, "maximum ESP drawing distance" );
+CVAR_DEFINE_AUTO( gl_esp_alpha, "0.7", FCVAR_GLCONFIG, "ESP transparency (0.0-1.0)" );
+CVAR_DEFINE_AUTO( gl_esp_skeleton, "0", FCVAR_GLCONFIG, "draw player skeleton" );
+CVAR_DEFINE_AUTO( gl_esp_box_style, "1", FCVAR_GLCONFIG, "box drawing style (1=simple, 2=3D, 3=rounded)" );
+CVAR_DEFINE_AUTO( gl_esp_font_size, "1.0", FCVAR_GLCONFIG, "ESP text font size multiplier" );
+CVAR_DEFINE_AUTO( gl_esp_animation, "1", FCVAR_GLCONFIG, "enable ESP animations and effects" );
+CVAR_DEFINE_AUTO( gl_esp_glow_intensity, "2.0", FCVAR_GLCONFIG, "glow effect intensity" );
+CVAR_DEFINE_AUTO( gl_esp_rainbow, "0", FCVAR_GLCONFIG, "enable rainbow color cycling" );
+CVAR_DEFINE_AUTO( gl_esp_beam, "0", FCVAR_GLCONFIG, "draw beam lines to players" );
+CVAR_DEFINE_AUTO( gl_esp_crosshair, "1", FCVAR_GLCONFIG, "highlight crosshair when targeting" );
+CVAR_DEFINE_AUTO( gl_esp_health_bar, "0", FCVAR_GLCONFIG, "enable health bars above players" );
+CVAR_DEFINE_AUTO( gl_esp_health_style, "2", FCVAR_GLCONFIG, "health bar style (1=simple, 2=3D, 3=gradient, 4=animated)" );
+
+// Advanced Aimbot System CVARs
+CVAR_DEFINE_AUTO( gl_aimbot, "0", FCVAR_GLCONFIG, "enable advanced aimbot system" );
+CVAR_DEFINE_AUTO( gl_aimbot_fov, "60", FCVAR_GLCONFIG, "aimbot field of view in degrees" );
+CVAR_DEFINE_AUTO( gl_aimbot_smooth, "5.0", FCVAR_GLCONFIG, "aimbot smoothing factor (1-10)" );
+CVAR_DEFINE_AUTO( gl_aimbot_target_mode, "1", FCVAR_GLCONFIG, "targeting mode (1=closest, 2=head, 3=chest)" );
+CVAR_DEFINE_AUTO( gl_aimbot_auto_fire, "0", FCVAR_GLCONFIG, "automatic firing when target acquired" );
+CVAR_DEFINE_AUTO( gl_aimbot_prediction, "1", FCVAR_GLCONFIG, "enable target movement prediction" );
+CVAR_DEFINE_AUTO( gl_aimbot_bone_priority, "1", FCVAR_GLCONFIG, "bone targeting (1=head, 2=chest, 3=body)" );
+
+// NoSpread & NoRecoil System CVARs
+CVAR_DEFINE_AUTO( gl_nospread, "0", FCVAR_GLCONFIG, "eliminate weapon spread" );
+CVAR_DEFINE_AUTO( gl_norecoil, "0", FCVAR_GLCONFIG, "eliminate weapon recoil" );
+CVAR_DEFINE_AUTO( gl_nospread_strength, "1.0", FCVAR_GLCONFIG, "spread compensation strength" );
+CVAR_DEFINE_AUTO( gl_recoil_compensation, "1.0", FCVAR_GLCONFIG, "recoil compensation level" );
+CVAR_DEFINE_AUTO( gl_weapon_sway, "0", FCVAR_GLCONFIG, "disable weapon sway" );
+
+// Visual Enhancement System CVARs
+CVAR_DEFINE_AUTO( gl_fullbright, "0", FCVAR_GLCONFIG, "enable fullbright lighting" );
+CVAR_DEFINE_AUTO( gl_no_flash, "0", FCVAR_GLCONFIG, "disable flashbang effects" );
+CVAR_DEFINE_AUTO( gl_no_smoke, "0", FCVAR_GLCONFIG, "disable smoke grenades" );
+CVAR_DEFINE_AUTO( gl_sky_color, "0", FCVAR_GLCONFIG, "custom sky color override" );
+CVAR_DEFINE_AUTO( gl_ambient_boost, "1.0", FCVAR_GLCONFIG, "ambient lighting multiplier" );
+
+// Performance Enhancement CVARs
+CVAR_DEFINE_AUTO( gl_fps_boost, "0", FCVAR_GLCONFIG, "enable FPS boost optimizations" );
+CVAR_DEFINE_AUTO( gl_low_latency, "0", FCVAR_GLCONFIG, "enable low-latency mode" );
+CVAR_DEFINE_AUTO( gl_fast_render, "0", FCVAR_GLCONFIG, "fast rendering mode" );
+
+// Advanced Movement Systems
+CVAR_DEFINE_AUTO( gl_triggerbot, "0", FCVAR_GLCONFIG, "enable automatic triggerbot system" );
+CVAR_DEFINE_AUTO( gl_triggerbot_delay, "50", FCVAR_GLCONFIG, "triggerbot delay in milliseconds (0-1000)" );
+CVAR_DEFINE_AUTO( gl_bhop, "0", FCVAR_GLCONFIG, "enable bunny hop automation" );
+CVAR_DEFINE_AUTO( gl_bhop_intensity, "1.0", FCVAR_GLCONFIG, "bunny hop strafe intensity (0.1-2.0)" );
+CVAR_DEFINE_AUTO( gl_speed_hack, "1.0", FCVAR_GLCONFIG, "movement speed multiplier (1.0-5.0)" );
+
+// Visual Enhancement Systems
+CVAR_DEFINE_AUTO( gl_radar, "0", FCVAR_GLCONFIG, "enable 2D radar overlay" );
+CVAR_DEFINE_AUTO( gl_radar_size, "100", FCVAR_GLCONFIG, "radar overlay size (50-300)" );
+CVAR_DEFINE_AUTO( gl_crosshair_hack, "0", FCVAR_GLCONFIG, "enable enhanced crosshair system" );
+CVAR_DEFINE_AUTO( gl_crosshair_size, "20", FCVAR_GLCONFIG, "crosshair size (5-50)" );
+CVAR_DEFINE_AUTO( gl_crosshair_dynamic, "1", FCVAR_GLCONFIG, "dynamic crosshair color based on target" );
 CVAR_DEFINE_AUTO( r_lighting_extended, "1", FCVAR_GLCONFIG, "allow to get lighting from world and bmodels" );
 CVAR_DEFINE_AUTO( r_lighting_ambient, "0.3", FCVAR_GLCONFIG, "map ambient lighting scale" );
 CVAR_DEFINE_AUTO( r_detailtextures, "1", FCVAR_GLCONFIG, "enable detail textures support" );
@@ -1168,6 +1232,70 @@ static void GL_InitCommands( void )
 	gEngfuncs.Cvar_RegisterVariable( &gl_round_down );
 	gEngfuncs.Cvar_RegisterVariable( &gl_overbright );
 	gEngfuncs.Cvar_RegisterVariable( &gl_fog );
+	gEngfuncs.Cvar_RegisterVariable( &gl_wallhack );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_players );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_weapons );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_boxes );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_names );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_distance );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_health );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_glow );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_wireframe );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_maxdist );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_alpha );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_skeleton );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_box_style );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_font_size );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_animation );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_glow_intensity );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_rainbow );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_beam );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_crosshair );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_health_bar );
+	gEngfuncs.Cvar_RegisterVariable( &gl_esp_health_style );
+
+	// Advanced Cheat Systems - Aimbot
+	gEngfuncs.Cvar_RegisterVariable( &gl_aimbot );
+	gEngfuncs.Cvar_RegisterVariable( &gl_aimbot_fov );
+	gEngfuncs.Cvar_RegisterVariable( &gl_aimbot_smooth );
+	gEngfuncs.Cvar_RegisterVariable( &gl_aimbot_target_mode );
+	gEngfuncs.Cvar_RegisterVariable( &gl_aimbot_auto_fire );
+	gEngfuncs.Cvar_RegisterVariable( &gl_aimbot_prediction );
+	gEngfuncs.Cvar_RegisterVariable( &gl_aimbot_bone_priority );
+
+	// Advanced Cheat Systems - Weapon Control
+	gEngfuncs.Cvar_RegisterVariable( &gl_nospread );
+	gEngfuncs.Cvar_RegisterVariable( &gl_norecoil );
+	gEngfuncs.Cvar_RegisterVariable( &gl_nospread_strength );
+	gEngfuncs.Cvar_RegisterVariable( &gl_recoil_compensation );
+	gEngfuncs.Cvar_RegisterVariable( &gl_weapon_sway );
+
+	// Advanced Cheat Systems - Visual Enhancements
+	gEngfuncs.Cvar_RegisterVariable( &gl_fullbright );
+	gEngfuncs.Cvar_RegisterVariable( &gl_no_flash );
+	gEngfuncs.Cvar_RegisterVariable( &gl_no_smoke );
+	gEngfuncs.Cvar_RegisterVariable( &gl_sky_color );
+	gEngfuncs.Cvar_RegisterVariable( &gl_ambient_boost );
+
+	// Advanced Cheat Systems - Performance
+	gEngfuncs.Cvar_RegisterVariable( &gl_fps_boost );
+	gEngfuncs.Cvar_RegisterVariable( &gl_low_latency );
+	gEngfuncs.Cvar_RegisterVariable( &gl_fast_render );
+
+	// Advanced Movement Systems
+	gEngfuncs.Cvar_RegisterVariable( &gl_triggerbot );
+	gEngfuncs.Cvar_RegisterVariable( &gl_triggerbot_delay );
+	gEngfuncs.Cvar_RegisterVariable( &gl_bhop );
+	gEngfuncs.Cvar_RegisterVariable( &gl_bhop_intensity );
+	gEngfuncs.Cvar_RegisterVariable( &gl_speed_hack );
+
+	// Visual Enhancement Systems  
+	gEngfuncs.Cvar_RegisterVariable( &gl_radar );
+	gEngfuncs.Cvar_RegisterVariable( &gl_radar_size );
+	gEngfuncs.Cvar_RegisterVariable( &gl_crosshair_hack );
+	gEngfuncs.Cvar_RegisterVariable( &gl_crosshair_size );
+	gEngfuncs.Cvar_RegisterVariable( &gl_crosshair_dynamic );
 
 	// these cvar not used by engine but some mods requires this
 	gEngfuncs.Cvar_RegisterVariable( &gl_polyoffset );
@@ -1177,6 +1305,13 @@ static void GL_InitCommands( void )
 
 	gEngfuncs.Cmd_AddCommand( "r_info", R_RenderInfo_f, "display renderer info" );
 	gEngfuncs.Cmd_AddCommand( "timerefresh", SCR_TimeRefresh_f, "turn quickly and print rendering statistcs" );
+
+	// Advanced Cheat System Console Commands
+	gEngfuncs.Cmd_AddCommand( "cheat_test_all", NULL, "Test all cheat systems" );
+	gEngfuncs.Cmd_AddCommand( "cheat_aimbot_on", NULL, "Enable aimbot system" );
+	gEngfuncs.Cmd_AddCommand( "cheat_norecoil_on", NULL, "Enable norecoil system" );
+	gEngfuncs.Cmd_AddCommand( "cheat_fullbright_on", NULL, "Enable fullbright" );
+	gEngfuncs.Con_Printf( "Advanced Cheat System Commands: cheat_test_all, cheat_aimbot_on, cheat_norecoil_on, cheat_fullbright_on\n" );
 }
 
 /*
@@ -1275,6 +1410,9 @@ qboolean R_Init( void )
 	R_AliasInit();
 	R_ClearDecals();
 	R_ClearScene();
+
+	// Initialize advanced cheat systems
+	R_InitCheatSystems();
 
 	return true;
 }
