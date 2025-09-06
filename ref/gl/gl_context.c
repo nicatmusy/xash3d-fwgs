@@ -430,7 +430,7 @@ static const char *R_GetConfigName( void )
 	return "opengl";
 }
 
-static qboolean R_SpeedsMessage( char *out, size_t size )
+qboolean R_SpeedsMessage( char *out, size_t size )
 {
 	if( gEngfuncs.drawFuncs->R_SpeedsMessage != NULL )
 	{
