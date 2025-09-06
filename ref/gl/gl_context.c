@@ -135,7 +135,7 @@ static void Mod_UnloadTextures( model_t *mod )
 		Mod_SpriteUnloadTextures( mod->cache.data );
 		break;
 	default:
-		Assert( 0 );
+		ASSERT( 0 );
 		break;
 	}
 }

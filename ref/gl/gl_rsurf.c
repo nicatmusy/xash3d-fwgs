@@ -2107,7 +2107,7 @@ void R_GenerateVBO( void )
 					pglBindBufferARB( GL_ARRAY_BUFFER_ARB, vbo->glindex );
 					pglBufferDataARB( GL_ARRAY_BUFFER_ARB, vbo->array_len * sizeof( vbovertex_t ), vbo->array, GL_STATIC_DRAW_ARB );
 
-					Assert( len == vbo->array_len );
+					ASSERT( len == vbo->array_len );
 
 					vbo = vbo->next;
 					vbotex = vbotex->next;
@@ -2146,7 +2146,7 @@ void R_GenerateVBO( void )
 			}
 		}
 	}
-	Assert( len == vbo->array_len );
+	ASSERT( len == vbo->array_len );
 
 	// upload last array
 	pglGenBuffersARB( 1, &vbo->glindex );
@@ -3180,7 +3180,7 @@ void R_DrawVBO( qboolean drawlightmap, qboolean drawtextures )
 			if( !vbotex->vboarray )
 				continue;
 
-			// Assert( vbotex->vboarray == vbo );
+			// ASSERT( vbotex->vboarray == vbo );
 			if( vbotex->vboarray != vbo )
 				continue;
 
@@ -3231,7 +3231,7 @@ void R_DrawVBO( qboolean drawlightmap, qboolean drawtextures )
 		if( !drawtextures || !drawlightmap )
 			vbos.decaldata->lm[k] = NULL;
 	}
-	// Assert( !vbo->next );
+	// ASSERT( !vbo->next );
 	R_ClearVBOState( drawlightmap, drawtextures );
 
 	mtst.details_enabled = false;

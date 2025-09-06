@@ -44,9 +44,9 @@ R_GetTexture
 acess to array elem
 =================
 */
-gl_texture_t *R_GetTexture( unsigned int texnum )
+gl_texture_t *R_GetTexture( GLenum texnum )
 {
-	Assert( texnum < MAX_TEXTURES );
+	ASSERT( texnum >= 0 && texnum < MAX_TEXTURES );
 	return &gl_textures[texnum];
 }
 
@@ -75,6 +75,48 @@ const char *GL_TargetToString( GLenum target )
 		return "Rect";
 	}
 	return "??";
+}
+
+/*
+=================
+GL_Bind
+=================
+*/
+void GL_Bind( GLint tmu, GLenum texnum )
+{
+	gl_texture_t	*texture;
+	GLuint		glTarget;
+
+	// missed or invalid texture?
+	if( texnum <= 0 || texnum >= MAX_TEXTURES )
+	{
+		if( texnum != 0 )
+			gEngfuncs.Con_DPrintf( S_ERROR "%s: invalid texturenum %d\n", __func__, texnum );
+		texnum = tr.defaultTexture;
+	}
+	if( tmu != GL_KEEP_UNIT )
+		GL_SelectTexture( tmu );
+	else tmu = glState.activeTMU;
+
+	texture = &gl_textures[texnum];
+	glTarget = texture->target;
+
+	if( glTarget == GL_TEXTURE_2D_ARRAY_EXT )
+		glTarget = GL_TEXTURE_2D;
+
+	if( glState.currentTextureTargets[tmu] != glTarget )
+	{
+		GL_EnableTextureUnit( tmu, false );
+		glState.currentTextureTargets[tmu] = glTarget;
+		GL_EnableTextureUnit( tmu, true );
+	}
+
+	if( glState.currentTextures[tmu] == texture->texnum )
+		return;
+
+	pglBindTexture( texture->target, texture->texnum );
+	glState.currentTextures[tmu] = texture->texnum;
+	glState.currentTexturesIndex[tmu] = texnum;
 }
 
 qboolean GL_TextureFilteringEnabled( const gl_texture_t *tex )
@@ -339,6 +381,10 @@ static size_t GL_CalcImageSize( pixformat_t format, int width, int height, int d
 	case PF_ATI2:
 		size = (((width + 3) >> 2) * ((height + 3) >> 2) * 16) * depth;
 		break;
+	default:
+		// Handle unhandled enumeration values
+		size = 0;
+		break;
 	}
 
 	return size;
@@ -593,7 +639,7 @@ static void GL_SetTextureTarget( gl_texture_t *tex, rgbdata_t *pic )
 #if !XASH_GLES
 	if( pic->width > 1 && pic->height <= 1 )
 		tex->target = GL_TEXTURE_1D;
-	else
+	else 
 #endif // just skip first condition
 	if( FBitSet( pic->flags, IMAGE_CUBEMAP ))
 		tex->target = GL_TEXTURE_CUBE_MAP_ARB;
@@ -1107,7 +1153,7 @@ static qboolean GL_UploadTexture( gl_texture_t *tex, rgbdata_t *pic )
 	size_t		texsize, size;
 	uint		width, height;
 	uint		i, j, numSides;
-	uint		offset = 0;
+	// uint		offset = 0;  // Unused variable
 	qboolean		normalMap;
 	const byte	*bufend;
 
@@ -1416,7 +1462,7 @@ static void GL_DeleteTexture( gl_texture_t *tex )
 	gl_texture_t	**prev;
 	gl_texture_t	*cur;
 
-	Assert( tex != NULL );
+	ASSERT( tex != NULL );
 
 	// already freed?
 	if( !tex->texnum ) return;
@@ -1511,7 +1557,7 @@ int GL_LoadTexture( const char *name, const byte *buf, size_t size, int flags )
 {
 	gl_texture_t	*tex;
 	rgbdata_t		*pic;
-	uint		picFlags = 0;
+	// uint		picFlags = 0;  // Unused variable
 
 	if( !GL_CheckTexName( name ))
 		return 0;
@@ -1520,14 +1566,14 @@ int GL_LoadTexture( const char *name, const byte *buf, size_t size, int flags )
 	if(( tex = GL_TextureForName( name )))
 		return (tex - gl_textures);
 
-	if( FBitSet( flags, TF_NOFLIP_TGA ))
-		SetBits( picFlags, IL_DONTFLIP_TGA );
+	// if( FBitSet( flags, TF_NOFLIP_TGA ))
+	// 	SetBits( picFlags, IL_DONTFLIP_TGA );
 
-	if( FBitSet( flags, TF_KEEP_SOURCE ) && !FBitSet( flags, TF_EXPAND_SOURCE ))
-		SetBits( picFlags, IL_KEEP_8BIT );
+	// if( FBitSet( flags, TF_KEEP_SOURCE ) && !FBitSet( flags, TF_EXPAND_SOURCE ))
+	// 	SetBits( picFlags, IL_KEEP_8BIT );
 
 	// set some image flags
-	gEngfuncs.Image_SetForceFlags( picFlags );
+	// gEngfuncs.Image_SetForceFlags( picFlags );
 
 	pic = gEngfuncs.FS_LoadImage( name, buf, size );
 	if( !pic ) return 0; // couldn't loading image
@@ -1560,7 +1606,7 @@ int GL_LoadTextureArray( const char **names, int flags )
 	rgbdata_t		*pic, *src;
 	char		basename[256];
 	uint		numLayers = 0;
-	uint		picFlags = 0;
+	// uint		picFlags = 0;  // Unused variable
 	char		name[256];
 	gl_texture_t	*tex;
 	size_t		len = 0;
@@ -1859,11 +1905,10 @@ int GL_FindTexture( const char *name )
 GL_FreeTexture
 ================
 */
-void GL_FreeTexture( unsigned int texnum )
+void GL_FreeTexture( GLenum texnum )
 {
 	// number 0 it's already freed
-	if( texnum == 0 || texnum >= MAX_TEXTURES )
-		return;
+	if( texnum <= 0 ) return;
 
 	GL_DeleteTexture( &gl_textures[texnum] );
 }
@@ -2008,7 +2053,7 @@ GL_CreateInternalTextures
 */
 static void GL_CreateInternalTextures( void )
 {
-	int	dx2, dy, d;
+	// int	dx2, dy, d;  // Unused variables
 	int	x, y;
 	rgbdata_t	*pic;
 

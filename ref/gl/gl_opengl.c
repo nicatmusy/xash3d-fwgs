@@ -473,19 +473,19 @@ static const dllfunc_t vaofuncs[] =
 { GL_CALL( glIsVertexArray ) },
 };
 
-static const dllfunc_t multitexturefuncs_es[] =
-{
-{ GL_CALL( glActiveTexture ) },
-{ GL_CALL( glActiveTextureARB ) },
-{ GL_CALL( glClientActiveTexture ) },
-{ GL_CALL( glClientActiveTextureARB ) },
-};
+// static const dllfunc_t multitexturefuncs_es[] =
+// {
+// { GL_CALL( glActiveTexture ) },
+// { GL_CALL( glActiveTextureARB ) },
+// { GL_CALL( glClientActiveTexture ) },
+// { GL_CALL( glClientActiveTextureARB ) },
+// };
 
-static const dllfunc_t multitexturefuncs_es2[] =
-{
-{ GL_CALL( glActiveTexture ) },
-{ GL_CALL( glActiveTextureARB ) },
-};
+// static const dllfunc_t multitexturefuncs_es2[] =
+// {
+// { GL_CALL( glActiveTexture ) },
+// { GL_CALL( glActiveTextureARB ) },
+// };
 
 #endif // !XASH_GL_STATIC
 
@@ -1115,7 +1115,7 @@ void GL_InitExtensions( void )
 
 			for( i = 0; i < n; i++ )
 			{
-				int l = Q_strncpy( str, pglGetStringi( GL_EXTENSIONS, i ), len );
+				int l = Q_strncpy( str, (const char *)pglGetStringi( GL_EXTENSIONS, i ), len );
 				str += l;
 				*str++ = ' ';
 				len -= l + 1;
