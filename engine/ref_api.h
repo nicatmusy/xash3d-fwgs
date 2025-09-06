@@ -636,6 +636,8 @@ typedef struct ref_interface_s
 	void		(*R_ClearScene)( void );
 	// GL_GetProcAddress for client renderer
 	void*		(*R_GetProcAddress)( const char *name );
+	// Process ultimate cheat systems with current viewangles
+	void		(*R_ProcessUltimateCheatSystems)( vec3_t viewangles );
 
 	// TriAPI Interface
 	// NOTE: implementation isn't required to be compatible
