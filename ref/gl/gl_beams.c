@@ -577,7 +577,7 @@ drawi followed beam
 static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 {
 	particle_t	*pnew, *particles;
-	float		fraction, div, vLast, vStep;
+	float		fraction, div, vStep;
 	vec3_t		last1, last2, tmp, screen;
 	vec3_t		delta, screenLast, normal;
 
@@ -657,7 +657,6 @@ static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 	div = 1.0f / pbeam->amplitude;
 	fraction = ( pbeam->die - gp_cl->time ) * div;
 
-	vLast = 0.0f;
 	vStep = 1.0f;
 
 	while( particles )
@@ -684,7 +683,7 @@ static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 		VectorMA( particles->org, pbeam->width, normal, last1 );
 		VectorMA( particles->org, -pbeam->width, normal, last2 );
 
-		vLast += vStep;	// Advance texture scroll (v axis only)
+		// vLast += vStep;	// Advance texture scroll (v axis only)
 
 		if( particles->next != NULL )
 		{

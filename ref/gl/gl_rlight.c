@@ -233,7 +233,6 @@ static qboolean R_RecursiveLightPoint( model_t *model, mnode_t *node, float p1f,
 	color24		*lm, *dm;
 	mextrasurf_t	*info;
 	msurface_t	*surf;
-	mtexinfo_t	*tex;
 	matrix3x4		tbn;
 	vec3_t		mid;
 	mnode_t *children[2];
@@ -281,7 +280,6 @@ static qboolean R_RecursiveLightPoint( model_t *model, mnode_t *node, float p1f,
 	{
 		int	smax, tmax;
 
-		tex = surf->texinfo;
 		info = surf->info;
 
 		if( FBitSet( surf->flags, SURF_DRAWTILED ))

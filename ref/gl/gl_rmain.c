@@ -870,8 +870,23 @@ static void R_DrawEntitiesOnList( void )
 
 		switch( RI.currentmodel->type )
 		{
+		case mod_bad:
+			// Handle bad models
+			break;
+		case mod_brush:
+			R_DrawBrushModel( RI.currententity );
+			break;
+		case mod_alias:
+			R_DrawAliasModel( RI.currententity );
+			break;
+		case mod_studio:
+			R_DrawStudioModel( RI.currententity );
+			break;
 		case mod_sprite:
 			R_DrawSpriteModel( RI.currententity );
+			break;
+		default:
+			// Handle any other model types
 			break;
 		}
 	}

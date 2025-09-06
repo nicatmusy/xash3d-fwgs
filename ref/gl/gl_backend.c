@@ -399,13 +399,7 @@ void GL_Cull( GLenum cull )
 	glState.faceCull = cull;
 }
 
-void GL_MultiTexCoord2f( GLenum texture, GLfloat s, GLfloat t )
-{
-	if( pglMultiTexCoord2f )
-	{
-		pglMultiTexCoord2f( texture, s, t );
-	}
-}
+// Removed duplicate GL_MultiTexCoord2f definition to avoid redefinition error
 
 void GL_SetRenderMode( int mode )
 {
