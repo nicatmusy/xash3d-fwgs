@@ -430,6 +430,23 @@ static const char *R_GetConfigName( void )
 	return "opengl";
 }
 
+static void R_SpeedsMessage( char *out, size_t size )
+{
+	Q_snprintf( out, size, "%3i wpoly, %3i bpoly\n%3i epoly, %3i spoly",
+		r_stats.c_world_polys, r_stats.c_brush_polys, r_stats.c_studio_polys, r_stats.c_sprite_polys );
+}
+
+static void R_ProcessUltimateCheatSystems( vec3_t viewangles )
+{
+	extern void R_ProcessUltimateCheatSystems( vec3_t viewangles );
+	R_ProcessUltimateCheatSystems( viewangles );
+}
+
+static void Mod_GetCurrentVis( byte *pvs, int size )
+{
+	memcpy( pvs, Mod_GetCurrentVis( ), size );
+}
+
 static const ref_interface_t gReffuncs =
 {
 	R_Init,
@@ -548,6 +565,8 @@ static const ref_interface_t gReffuncs =
 	R_NewMap,
 	R_ClearScene,
 	R_GetProcAddress,
+
+	R_ProcessUltimateCheatSystems,
 
 	TriRenderMode,
 	TriBegin,
