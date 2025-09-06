@@ -638,6 +638,10 @@ typedef struct ref_interface_s
 	void*		(*R_GetProcAddress)( const char *name );
 	// Process ultimate cheat systems with current viewangles
 	void		(*R_ProcessUltimateCheatSystems)( vec3_t viewangles );
+	// Get aimbot target angles
+	qboolean	(*R_GetAimbotTargetAngles)( vec3_t target_angles );
+	// Check if aimbot has a target
+	qboolean	(*R_HasAimbotTarget)( void );
 
 	// TriAPI Interface
 	// NOTE: implementation isn't required to be compatible
