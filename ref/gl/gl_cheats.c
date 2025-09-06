@@ -25,9 +25,11 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 {
 	static float lastProcessTime = 0.0f;
 	float currentTime = gp_host->realtime;
-	float deltaTime = currentTime - lastProcessTime;
+	float deltaTime;
+	float strength, compensation;
 	
 	/* 500Hz processing (0.002 seconds) for smooth control */
+	deltaTime = currentTime - lastProcessTime;
 	if( deltaTime < 0.002f )
 		return;
 		
@@ -36,7 +38,7 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 	/* NoSpread processing */
 	if( gl_nospread.value > 0.0f )
 	{
-		float strength = gl_nospread_strength.value;
+		strength = gl_nospread_strength.value;
 		if( strength < 0.0f ) strength = 0.0f;
 		if( strength > 1.0f ) strength = 1.0f;
 		
@@ -58,7 +60,7 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 	/* NoRecoil processing */
 	if( gl_norecoil.value > 0.0f )
 	{
-		float compensation = gl_recoil_compensation.value;
+		compensation = gl_recoil_compensation.value;
 		if( compensation < 0.0f ) compensation = 0.0f;
 		if( compensation > 1.0f ) compensation = 1.0f;
 		
@@ -108,14 +110,21 @@ Smart FOV-based aimbot system
 */
 static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 {
-	vec3_t smoothedAngles;
 	float fov, smooth;
+	int targetMode, bonePriority;
+	cl_entity_t *target = NULL;
+	vec3_t targetPos, aimAngles, angleDiff;
+	float bestDistance = 99999.0f;
+	float bestFOV = 180.0f;
+	int i;
 	
 	if( gl_aimbot.value <= 0.0f )
 		return;
 		
 	/* Get aimbot settings */
 	fov = gl_aimbot_fov.value;
+	targetMode = (int)gl_aimbot_target_mode.value;
+	bonePriority = (int)gl_aimbot_bone_priority.value;
 	smooth = gl_aimbot_smooth.value;
 	
 	/* Validate settings */
@@ -124,24 +133,166 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 	if( smooth < 1.0f ) smooth = 1.0f;
 	if( smooth > 10.0f ) smooth = 10.0f;
 	
-	/* Copy current angles for smoothing */
-	VectorCopy( viewangles, smoothedAngles );
+	/* Scan entities to find valid targets */
+	for( i = 1; i < tr.max_entities; i++ )
+	{
+		cl_entity_t *ent = CL_GetEntityByIndex( i );
+		vec3_t entityPos, direction, anglesToEntity;
+		float distance, entityFOV;
+		
+		/* Skip invalid entities */
+		if( !ent || !ent->model || ent->curstate.movetype == MOVETYPE_NONE )
+			continue;
+			
+		/* Skip the local player */
+		if( i == (gp_cl->playernum + 1) )
+			continue;
+			
+		/* Skip entities without player info (non-players) */
+		if( !gEngfuncs.pfnPlayerInfo( i - 1 ))
+			continue;
+			
+		/* Get entity position (use head bone for priority) */
+		if( bonePriority == 1 ) /* Head priority */
+		{
+			/* Approximate head position */
+			VectorCopy( ent->origin, entityPos );
+			entityPos[2] += 20.0f; /* Head is typically ~20 units above origin */
+		}
+		else if( bonePriority == 2 ) /* Chest priority */
+		{
+			/* Approximate chest position */
+			VectorCopy( ent->origin, entityPos );
+			entityPos[2] += 10.0f; /* Chest is typically ~10 units above origin */
+		}
+		else /* Body/default */
+		{
+			VectorCopy( ent->origin, entityPos );
+		}
+		
+		/* Calculate distance to entity */
+		VectorSubtract( entityPos, RI.vieworg, direction );
+		distance = VectorLength( direction );
+		
+		/* Skip entities that are too far */
+		if( distance > 8192.0f )
+			continue;
+			
+		/* Calculate angles to entity */
+		VectorAngles( direction, anglesToEntity );
+		
+		/* Normalize angles */
+		if( anglesToEntity[0] > 180.0f ) anglesToEntity[0] -= 360.0f;
+		if( anglesToEntity[1] > 180.0f ) anglesToEntity[1] -= 360.0f;
+		
+		/* Calculate FOV difference from current view */
+		angleDiff[0] = anglesToEntity[0] - viewangles[0];
+		angleDiff[1] = anglesToEntity[1] - viewangles[1];
+		
+		/* Normalize angle differences */
+		if( angleDiff[0] > 180.0f ) angleDiff[0] -= 360.0f;
+		if( angleDiff[0] < -180.0f ) angleDiff[0] += 360.0f;
+		if( angleDiff[1] > 180.0f ) angleDiff[1] -= 360.0f;
+		if( angleDiff[1] < -180.0f ) angleDiff[1] += 360.0f;
+		
+		entityFOV = sqrt( angleDiff[0] * angleDiff[0] + angleDiff[1] * angleDiff[1] );
+		
+		/* Skip entities outside FOV */
+		if( entityFOV > fov )
+			continue;
+			
+		/* Select target based on mode */
+		qboolean isBetterTarget = false;
+		
+		switch( targetMode )
+		{
+		case 1: /* Closest distance */
+			if( distance < bestDistance )
+			{
+				isBetterTarget = true;
+			}
+			break;
+			
+		case 2: /* Head priority (already handled by bone selection) */
+			if( entityFOV < bestFOV )
+			{
+				isBetterTarget = true;
+			}
+			break;
+			
+		case 3: /* Chest priority (already handled by bone selection) */
+			if( entityFOV < bestFOV )
+			{
+				isBetterTarget = true;
+			}
+			break;
+			
+		default: /* FOV priority */
+			if( entityFOV < bestFOV )
+			{
+				isBetterTarget = true;
+			}
+			break;
+		}
+		
+		if( isBetterTarget )
+		{
+			target = ent;
+			VectorCopy( entityPos, targetPos );
+			bestDistance = distance;
+			bestFOV = entityFOV;
+		}
+	}
 	
-	/* Apply smoothing algorithm with clamping to prevent extreme changes */
-	float pitchDiff = smoothedAngles[PITCH] - viewangles[PITCH];
-	float yawDiff = smoothedAngles[YAW] - viewangles[YAW];
-	
-	/* Limit the difference to prevent snapping */
-	if( pitchDiff > 5.0f ) pitchDiff = 5.0f;
-	if( pitchDiff < -5.0f ) pitchDiff = -5.0f;
-	if( yawDiff > 5.0f ) yawDiff = 5.0f;
-	if( yawDiff < -5.0f ) yawDiff = -5.0f;
-	
-	/* Apply smoothing */
-	viewangles[PITCH] += pitchDiff / smooth;
-	viewangles[YAW] += yawDiff / smooth;
-	
-	gEngfuncs.Con_DPrintf( "Aimbot: FOV=%.1f Smooth=%.1f Active\n", fov, smooth );
+	/* If we found a target, aim at it */
+	if( target )
+	{
+		vec3_t direction, anglesToTarget;
+		
+		/* Calculate direction to target */
+		VectorSubtract( targetPos, RI.vieworg, direction );
+		
+		/* Calculate angles to target */
+		VectorAngles( direction, anglesToTarget );
+		
+		/* Normalize angles */
+		if( anglesToTarget[0] > 180.0f ) anglesToTarget[0] -= 360.0f;
+		if( anglesToTarget[1] > 180.0f ) anglesToTarget[1] -= 360.0f;
+		
+		/* Calculate angle differences */
+		angleDiff[0] = anglesToTarget[0] - viewangles[0];
+		angleDiff[1] = anglesToTarget[1] - viewangles[1];
+		
+		/* Normalize angle differences */
+		if( angleDiff[0] > 180.0f ) angleDiff[0] -= 360.0f;
+		if( angleDiff[0] < -180.0f ) angleDiff[0] += 360.0f;
+		if( angleDiff[1] > 180.0f ) angleDiff[1] -= 360.0f;
+		if( angleDiff[1] < -180.0f ) angleDiff[1] += 360.0f;
+		
+		/* Limit the difference to prevent snapping */
+		if( angleDiff[0] > 30.0f ) angleDiff[0] = 30.0f;
+		if( angleDiff[0] < -30.0f ) angleDiff[0] = -30.0f;
+		if( angleDiff[1] > 30.0f ) angleDiff[1] = 30.0f;
+		if( angleDiff[1] < -30.0f ) angleDiff[1] = -30.0f;
+		
+		/* Apply smoothing */
+		viewangles[0] += angleDiff[0] / smooth;
+		viewangles[1] += angleDiff[1] / smooth;
+		
+		/* Handle auto-fire if enabled */
+		if( gl_aimbot_auto_fire.value > 0.0f )
+		{
+			/* This would require integration with input system to simulate shooting */
+			/* For now, just log that we would fire */
+			gEngfuncs.Con_DPrintf( "Aimbot: Target acquired, would fire\n" );
+		}
+		
+		gEngfuncs.Con_DPrintf( "Aimbot: Locked onto target (FOV=%.1f, Smooth=%.1f)\n", fov, smooth );
+	}
+	else
+	{
+		gEngfuncs.Con_DPrintf( "Aimbot: FOV=%.1f Smooth=%.1f Active (No target)\n", fov, smooth );
+	}
 }
 
 /*
@@ -153,6 +304,8 @@ Visual enhancement system for improved visibility
 */
 static void R_ProcessVisualEnhancements( void )
 {
+	float boost;
+	
 	/* Fullbright processing */
 	if( gl_fullbright.value > 0.0f )
 	{
@@ -180,7 +333,7 @@ static void R_ProcessVisualEnhancements( void )
 	/* Ambient boost */
 	if( gl_ambient_boost.value != 1.0f )
 	{
-		float boost = gl_ambient_boost.value;
+		boost = gl_ambient_boost.value;
 		if( boost < 0.1f ) boost = 0.1f;
 		if( boost > 5.0f ) boost = 5.0f;
 		
@@ -232,21 +385,23 @@ static void R_ProcessBunnyHop( vec3_t viewangles )
 {
 	static float lastStrafeTime = 0.0f;
 	float currentTime = gp_host->realtime;
-	float deltaTime = currentTime - lastStrafeTime;
+	float deltaTime;
+	float strafeIntensity, adjustment;
 	
 	if( gl_bhop.value <= 0.0f )
 		return;
 		
 	/* Auto-strafe processing for perfect bunny hops */
+	deltaTime = currentTime - lastStrafeTime;
 	if( deltaTime > 0.016f ) /* ~60Hz processing */
 	{
-		float strafeIntensity = gl_bhop_intensity.value;
+		strafeIntensity = gl_bhop_intensity.value;
 		if( strafeIntensity < 0.1f ) strafeIntensity = 0.1f;
 		if( strafeIntensity > 2.0f ) strafeIntensity = 2.0f;
 		
 		/* Apply subtle view angle modifications for strafe optimization */
 		/* Reduce the intensity to prevent extreme view angle changes */
-		float adjustment = sin(currentTime * 10.0f) * strafeIntensity * 0.1f;
+		adjustment = sin(currentTime * 10.0f) * strafeIntensity * 0.1f;
 		
 		/* Only apply if the adjustment is significant enough */
 		if( adjustment > 0.01f || adjustment < -0.01f )
@@ -520,6 +675,8 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 {
 	static float lastDebugTime = 0.0f;
 	float currentTime = gp_host->realtime;
+	vec3_t originalAngles;
+	float pitchDiff, yawDiff, rollDiff;
 	
 	/* Debug output every 3 seconds to verify function is being called */
 	if( currentTime - lastDebugTime > 3.0f )
@@ -534,7 +691,6 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 	}
 
 	/* Store original angles for safety checks */
-	vec3_t originalAngles;
 	VectorCopy( viewangles, originalAngles );
 
 	/* Process all advanced cheat systems */
@@ -551,9 +707,9 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 	R_ProcessCrosshairHack();
 	
 	/* Safety check: Prevent extreme angle changes that could cause instability */
-	float pitchDiff = fabs(viewangles[PITCH] - originalAngles[PITCH]);
-	float yawDiff = fabs(viewangles[YAW] - originalAngles[YAW]);
-	float rollDiff = fabs(viewangles[ROLL] - originalAngles[ROLL]);
+	pitchDiff = fabs(viewangles[PITCH] - originalAngles[PITCH]);
+	yawDiff = fabs(viewangles[YAW] - originalAngles[YAW]);
+	rollDiff = fabs(viewangles[ROLL] - originalAngles[ROLL]);
 	
 	/* If changes are too extreme, limit them */
 	if( pitchDiff > 10.0f )
