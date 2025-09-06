@@ -73,6 +73,103 @@ uint IN_CollectInputDevices( void )
 	Con_Reportf( "Connected devices: %s%s%s%s\n",
 		FBitSet( ret, INPUT_DEVICE_MOUSE )    ? "mouse " : "",
 		FBitSet( ret, INPUT_DEVICE_TOUCH )    ? "touch " : "",
+		FBitSet( ret, INPUT_DEVICE_JOYSTICK ) ? "joy " : "",
+		FBitSet( ret, INPUT_DEVICE_VR )       ? "vr " : "");
+
+	return ret;
+}
+
+/*
+=================
+IN_LockInputDevices
+
+tries to lock any possibilty to connect another input device after
+player is connected to the server
+=================
+*/
+void IN_LockInputDevices( qboolean lock )
+{
+	extern convar_t joy_enable; // private to input system
+
+	if( lock )
+	{
+		SetBits( m_ignore.flags, FCVAR_READ_ONLY );
+		SetBits( joy_enable.flags, FCVAR_READ_ONLY );
+		SetBits( touch_enable.flags, FCVAR_READ_ONLY );
+	}
+	else
+	{
+		ClearBits( m_ignore.flags, FCVAR_READ_ONLY );
+		ClearBits( joy_enable.flags, FCVAR_READ_ONLY );
+		ClearBits( touch_enable.flags, FCVAR_READ_ONLY );
+	}
+}
+
+
+/*
+===========
+IN_StartupMouse
+===========
+*/
+static void IN_StartupMouse( void )
+{
+	Cvar_RegisterVariable( &m_ignore );
+
+	Cvar_RegisterVariable( &m_pitch );
+	Cvar_RegisterVariable( &m_yaw );
+	Cvar_RegisterVariable( &look_filter );
+	Cvar_RegisterVariable( &m_rawinput );
+	Cvar_RegisterVariable( &m_grab_debug );
+
+	// You can use -nomouse argument to prevent using mouse from client
+	// -noenginemouse will disable all mouse input
+	if( Sys_CheckParm(  "-noenginemouse" )) return;
+
+	in_mouseinitialized = true;
+}
+
+/*
+===========
+IN_MouseSavePos
+
+Save mouse pos before state change e.g. changelevel
+===========
+*/
+void IN_MouseSavePos( void )
+{
+	if( !in_mouseactive )
+		return;
+
+	Platform_GetMousePos( &in_lastvalidpos.x, &in_lastvalidpos.y );
+	in_mouse_savedpos = true;
+}
+
+/*
+===========
+IN_MouseRestorePos
+
+Restore right position for background
+===========
+*/
+void IN_MouseRestorePos( void )
+{
+	if( !in_mouse_savedpos )
+		return;
+
+	Platform_SetMousePos( in_lastvalidpos.x, in_lastvalidpos.y );
+
+	in_mouse_savedpos = false;
+}
+
+/*
+===========
+IN_ToggleClientMouse
+
+Called when key_dest is changed
+===========
+*/
+void IN_ToggleClientMouse( int newstate, int oldstate )
+{
 	if( newstate == oldstate )
 		return;
 
@@ -340,6 +437,139 @@ void IN_Init( void )
 	Cvar_RegisterVariable( &cl_backspeed );
 	Cvar_RegisterVariable( &cl_sidespeed );
 
+	if( !Host_IsDedicated() )
+	{
+		IN_StartupMouse( );
+
+		Joy_Init(); // common joystick support init
+
+		Touch_Init();
+
+#if XASH_USE_EVDEV
+		Evdev_Init();
+#endif
+	}
+}
+
+/*
+================
+IN_JoyMove
+
+Common function for engine joystick movement
+
+	-1 < forwardmove < 1,	-1 < sidemove < 1
+
+================
+*/
+
+#define F (1U << 0)	// Forward
+#define B (1U << 1)	// Back
+#define L (1U << 2)	// Left
+#define R (1U << 3)	// Right
+#define T (1U << 4)	// Forward stop
+#define S (1U << 5)	// Side stop
+static void IN_JoyAppendMove( usercmd_t *cmd, float forwardmove, float sidemove )
+{
+	static uint moveflags = T | S;
+
+	if( forwardmove ) cmd->forwardmove  = forwardmove * cl_forwardspeed.value;
+	if( sidemove ) cmd->sidemove  = sidemove * cl_sidespeed.value;
+
+	if( forwardmove )
+	{
+		moveflags &= ~T;
+	}
+	else if( !( moveflags & T ) )
+	{
+		Cmd_ExecuteString( "-back" );
+		Cmd_ExecuteString( "-forward" );
+		moveflags |= T;
+	}
+
+	if( sidemove )
+	{
+		moveflags &= ~S;
+	}
+	else if( !( moveflags & S ) )
+	{
+		Cmd_ExecuteString( "-moveleft" );
+		Cmd_ExecuteString( "-moveright" );
+		moveflags |= S;
+	}
+
+	if ( forwardmove > 0.7f && !( moveflags & F ))
+	{
+		moveflags |= F;
+		Cmd_ExecuteString( "+forward" );
+	}
+	else if ( forwardmove < 0.7f && ( moveflags & F ))
+	{
+		moveflags &= ~F;
+		Cmd_ExecuteString( "-forward" );
+	}
+
+	if ( forwardmove < -0.7f && !( moveflags & B ))
+	{
+		moveflags |= B;
+		Cmd_ExecuteString( "+back" );
+	}
+	else if ( forwardmove > -0.7f && ( moveflags & B ))
+	{
+		moveflags &= ~B;
+		Cmd_ExecuteString( "-back" );
+	}
+
+	if ( sidemove > 0.9f && !( moveflags & R ))
+	{
+		moveflags |= R;
+		Cmd_ExecuteString( "+moveright" );
+	}
+	else if ( sidemove < 0.9f && ( moveflags & R ))
+	{
+		moveflags &= ~R;
+		Cmd_ExecuteString( "-moveright" );
+	}
+
+	if ( sidemove < -0.9f && !( moveflags & L ))
+	{
+		moveflags |= L;
+		Cmd_ExecuteString( "+moveleft" );
+	}
+	else if ( sidemove > -0.9f && ( moveflags & L ))
+	{
+		moveflags &= ~L;
+		Cmd_ExecuteString( "-moveleft" );
+	}
+}
+
+static void IN_CollectInput( float *forward, float *side, float *pitch, float *yaw, qboolean includeMouse )
+{
+	if( includeMouse )
+	{
+		float x, y;
+		Platform_MouseMove( &x, &y );
+		*pitch += y * m_pitch.value;
+		*yaw   -= x * m_yaw.value;
+
+#if XASH_USE_EVDEV
+		IN_EvdevMove( yaw, pitch );
+#endif
+	}
+
+	Joy_FinalizeMove( forward, side, yaw, pitch );
+	Touch_GetMove( forward, side, yaw, pitch );
+
+	if( look_filter.value )
+	{
+		*pitch = ( inputstate.lastpitch + *pitch ) / 2;
+		*yaw   = ( inputstate.lastyaw   + *yaw ) / 2;
+		inputstate.lastpitch = *pitch;
+		inputstate.lastyaw   = *yaw;
+	}
+
+}
+
+/*
 ================
 IN_EngineAppendMove
 
