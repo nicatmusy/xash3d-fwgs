@@ -134,7 +134,7 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 	/* Validate settings */
 	if( fov < 30.0f ) fov = 30.0f;
 	if( fov > 180.0f ) fov = 180.0f;
-	if( smooth < 1.0f ) smooth = 1.0f;
+	if( smooth < 0.0f ) smooth = 0.0f;  /* Allow 0 for no smoothing */
 	if( smooth > 10.0f ) smooth = 10.0f;
 	
 	/* Scan entities to find valid targets */
@@ -297,9 +297,20 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		if( angleDiff[1] > 30.0f ) angleDiff[1] = 30.0f;
 		if( angleDiff[1] < -30.0f ) angleDiff[1] = -30.0f;
 		
-		/* Apply smoothing */
-		viewangles[0] += angleDiff[0] / smooth;
-		viewangles[1] += angleDiff[1] / smooth;
+		/* Apply smoothing with proper handling of edge cases */
+		if( smooth > 1.0f )
+		{
+			/* Normal smoothing */
+			viewangles[0] += angleDiff[0] / smooth;
+			viewangles[1] += angleDiff[1] / smooth;
+		}
+		else
+		{
+			/* No smoothing or minimal smoothing - apply directly with small interpolation */
+			/* This prevents visual glitches while still providing proper targeting */
+			viewangles[0] += angleDiff[0] * 0.3f;  /* 30% interpolation to prevent snapping */
+			viewangles[1] += angleDiff[1] * 0.3f;
+		}
 		
 		/* Normalize viewangles */
 		if( viewangles[0] > 89.0f ) viewangles[0] = 89.0f;
