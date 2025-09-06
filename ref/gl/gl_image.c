@@ -706,6 +706,10 @@ static void GL_SetTextureFormat( gl_texture_t *tex, pixformat_t format, int chan
 				tex->format = GL_COMPRESSED_LUMINANCE_ALPHA_3DC_ATI;
 			else tex->format = GL_COMPRESSED_RED_GREEN_RGTC2_EXT;
 			break;
+		default:
+			// Handle unhandled enumeration values
+			tex->format = 0;
+			break;
 		}
 		return;
 	}
@@ -878,8 +882,8 @@ box filter 3x3
 */
 static void GL_BoxFilter3x3( byte *out, const byte *in, int w, int h, int x, int y )
 {
-	int		r = 0, g = 0, b = 0, a = 0;
-	int		count = 0, acount = 0;
+	int		r = 0, g = 0, b = 0;
+	int		acount = 0;
 	int		i, j, u, v;
 	const byte	*pixel;
 
@@ -900,7 +904,6 @@ static void GL_BoxFilter3x3( byte *out, const byte *in, int w, int h, int x, int
 					r += pixel[0];
 					g += pixel[1];
 					b += pixel[2];
-					a += pixel[3];
 					acount++;
 				}
 			}
@@ -1153,7 +1156,6 @@ static qboolean GL_UploadTexture( gl_texture_t *tex, rgbdata_t *pic )
 	size_t		texsize, size;
 	uint		width, height;
 	uint		i, j, numSides;
-	// uint		offset = 0;  // Unused variable
 	qboolean		normalMap;
 	const byte	*bufend;
 
@@ -1198,7 +1200,6 @@ static qboolean GL_UploadTexture( gl_texture_t *tex, rgbdata_t *pic )
 
 	buf = pic->buffer;
 	bufend = pic->buffer + pic->size; // total image size include all the layers, cube sides, mipmaps
-	offset = GL_CalcImageSize( pic->type, pic->width, pic->height, pic->depth );
 	texsize = GL_CalcTextureSize( tex->format, tex->width, tex->height, tex->depth );
 	normalMap = FBitSet( tex->flags, TF_NORMALMAP ) ? true : false;
 	numSides = FBitSet( pic->flags, IMAGE_CUBEMAP ) ? 6 : 1;
@@ -1557,7 +1558,6 @@ int GL_LoadTexture( const char *name, const byte *buf, size_t size, int flags )
 {
 	gl_texture_t	*tex;
 	rgbdata_t		*pic;
-	// uint		picFlags = 0;  // Unused variable
 
 	if( !GL_CheckTexName( name ))
 		return 0;
@@ -1606,7 +1606,6 @@ int GL_LoadTextureArray( const char **names, int flags )
 	rgbdata_t		*pic, *src;
 	char		basename[256];
 	uint		numLayers = 0;
-	// uint		picFlags = 0;  // Unused variable
 	char		name[256];
 	gl_texture_t	*tex;
 	size_t		len = 0;
@@ -2053,7 +2052,6 @@ GL_CreateInternalTextures
 */
 static void GL_CreateInternalTextures( void )
 {
-	// int	dx2, dy, d;  // Unused variables
 	int	x, y;
 	rgbdata_t	*pic;
 
