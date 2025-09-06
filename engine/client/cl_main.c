@@ -679,17 +679,6 @@ static void CL_CreateCmd( void )
 		VectorCopy( angles, cl.viewangles );
 		if( !cl.background ) pcmd->cmd.msec = 0;
 	}
-		VectorCopy( angles, cl.viewangles );
-		if( !cl.background ) pcmd->cmd.msec = 0;
-	}
-	else
-	{
-		// Make sure the command viewangles are preserved for server communication
-		// (they were set earlier with aimbot modifications)
-		VectorCopy( cmd->viewangles, pcmd->cmd.viewangles );
-		VectorCopy( angles, cl.viewangles );
-		if( !cl.background ) pcmd->cmd.msec = 0;
-	}
 
 	// demo always have commands so don't overwrite them
 	if( !cls.demoplayback ) cl.cmd = pcmd->cmd;
