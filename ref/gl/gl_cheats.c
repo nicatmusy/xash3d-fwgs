@@ -10,6 +10,10 @@ the Free Software Foundation, either version 3 of the License, or
 
 #include "gl_local.h"
 
+// Aimbot target storage
+vec3_t gl_aimbot_target_angles = { 0.0f, 0.0f, 0.0f };
+qboolean gl_aimbot_has_target = false;
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -108,12 +112,12 @@ R_ProcessAdvancedAimbot
 Smart FOV-based aimbot system
 ===============
 */
-static void R_ProcessAdvancedAimbot( vec3_t viewangles )
+static void R_ProcessAdvancedAimbot( vec3_t viewangles, vec3_t target_angles, qboolean *has_target )
 {
-	float fov, smooth;
+	float fov;
 	int targetMode, bonePriority;
 	cl_entity_t *target = NULL;
-	vec3_t targetPos, angleDiff;
+	vec3_t targetPos;
 	float bestDistance = 99999.0f;
 	float bestFOV = 180.0f;
 	int i;
@@ -122,6 +126,8 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 	qboolean isBetterTarget;
 	player_info_t *playerInfo;
 	
+	*has_target = false;
+	
 	if( gl_aimbot.value <= 0.0f )
 		return;
 		
@@ -129,13 +135,10 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 	fov = gl_aimbot_fov.value;
 	targetMode = (int)gl_aimbot_target_mode.value;
 	bonePriority = (int)gl_aimbot_bone_priority.value;
-	smooth = gl_aimbot_smooth.value;
 	
 	/* Validate settings */
 	if( fov < 30.0f ) fov = 30.0f;
 	if( fov > 180.0f ) fov = 180.0f;
-	if( smooth < 0.0f ) smooth = 0.0f;  /* Allow 0 for no smoothing */
-	if( smooth > 10.0f ) smooth = 10.0f;
 	
 	/* Scan entities to find valid targets */
 	for( i = 1; i < tr.max_entities; i++ )
@@ -206,6 +209,7 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		if( anglesToEntity[1] < -180.0f ) anglesToEntity[1] += 360.0f;
 		
 		/* Calculate FOV difference from current view */
+		vec3_t angleDiff;
 		angleDiff[0] = anglesToEntity[0] - viewangles[0];
 		angleDiff[1] = anglesToEntity[1] - viewangles[1];
 		
@@ -264,7 +268,7 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		}
 	}
 	
-	/* If we found a target, aim at it directly without smoothing */
+	/* If we found a target, calculate target angles */
 	if( target )
 	{
 		vec3_t direction, anglesToTarget;
@@ -281,15 +285,12 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		if( anglesToTarget[1] > 180.0f ) anglesToTarget[1] -= 360.0f;
 		if( anglesToTarget[1] < -180.0f ) anglesToTarget[1] += 360.0f;
 		
-		/* Set viewangles directly to target angles - no smoothing */
-		viewangles[0] = anglesToTarget[0];
-		viewangles[1] = anglesToTarget[1];
+		/* Set target angles */
+		target_angles[0] = anglesToTarget[0];
+		target_angles[1] = anglesToTarget[1];
+		target_angles[2] = viewangles[2]; /* Keep roll unchanged */
 		
-		/* Normalize viewangles */
-		if( viewangles[0] > 89.0f ) viewangles[0] = 89.0f;
-		if( viewangles[0] < -89.0f ) viewangles[0] = -89.0f;
-		if( viewangles[1] > 180.0f ) viewangles[1] -= 360.0f;
-		if( viewangles[1] < -180.0f ) viewangles[1] += 360.0f;
+		*has_target = true;
 		
 		/* Handle auto-fire if enabled */
 		if( gl_aimbot_auto_fire.value > 0.0f )
@@ -299,7 +300,7 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 			gEngfuncs.Con_DPrintf( "Aimbot: Target acquired, would fire\n" );
 		}
 		
-		gEngfuncs.Con_DPrintf( "Aimbot: Locked onto target (FOV=%.1f, Direct Aim)\n", fov );
+		gEngfuncs.Con_DPrintf( "Aimbot: Locked onto target (FOV=%.1f)\n", fov );
 	}
 	else
 	{
@@ -707,7 +708,20 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 
 	/* Process all advanced cheat systems */
 	R_ProcessNoSpreadNoRecoil( viewangles );
-	R_ProcessAdvancedAimbot( viewangles );
+	
+	/* For aimbot, we just calculate target angles but don't apply them directly */
+	vec3_t target_angles;
+	qboolean has_target;
+	R_ProcessAdvancedAimbot( viewangles, target_angles, &has_target );
+	
+	/* Store aimbot target for client-side processing */
+	gl_aimbot_has_target = has_target;
+	if( has_target )
+	{
+		VectorCopy( target_angles, gl_aimbot_target_angles );
+		gEngfuncs.Con_DPrintf( "Aimbot target acquired: P=%.2f Y=%.2f\n", target_angles[0], target_angles[1] );
+	}
+	
 	R_ProcessVisualEnhancements();
 	R_ProcessPerformanceOptimizations();
 	
