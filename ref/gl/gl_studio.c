@@ -1203,6 +1203,21 @@ static void R_StudioDrawESPInfo( cl_entity_t *e )
 
 	y_offset = 0;
 
+	// Setup proper rendering context for 2D text
+	pglDisable( GL_DEPTH_TEST );
+	pglEnable( GL_BLEND );
+	pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+	// Switch to 2D rendering
+	pglMatrixMode( GL_PROJECTION );
+	pglPushMatrix();
+	pglLoadIdentity();
+	pglOrtho( 0, RI.viewport[2], RI.viewport[3], 0, -99999, 99999 );
+	
+	pglMatrixMode( GL_MODELVIEW );
+	pglPushMatrix();
+	pglLoadIdentity();
+
 	// Draw player name with enhanced fallback system - FORCE DISPLAY
 	if( gl_esp_names.value )
 	{
@@ -1303,7 +1318,7 @@ static void R_StudioDrawESPInfo( cl_entity_t *e )
 		pglEnable( GL_BLEND );
 		pglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 		
-		// Switch to 2D rendering
+		// Switch to 2D rendering for health bar
 		pglMatrixMode( GL_PROJECTION );
 		pglPushMatrix();
 		pglLoadIdentity();
@@ -1339,7 +1354,7 @@ static void R_StudioDrawESPInfo( cl_entity_t *e )
 		pglVertex2f( screen_x - 28, screen_y + y_offset + textheight + 9 );
 		pglEnd();
 		
-		// Restore matrices
+		// Restore matrices for health bar
 		pglPopMatrix();
 		pglMatrixMode( GL_PROJECTION );
 		pglPopMatrix();
@@ -1349,6 +1364,16 @@ static void R_StudioDrawESPInfo( cl_entity_t *e )
 		pglEnable( GL_TEXTURE_2D );
 		pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
 	}
+
+	// Restore matrices for text rendering
+	pglPopMatrix();
+	pglMatrixMode( GL_PROJECTION );
+	pglPopMatrix();
+	pglMatrixMode( GL_MODELVIEW );
+	
+	// Restore OpenGL state
+	pglEnable( GL_DEPTH_TEST );
+	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
 }
 
 /*
