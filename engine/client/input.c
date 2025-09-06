@@ -26,6 +26,13 @@ GNU General Public License for more details.
 #include "cursor_type.h"
 #include "platform/platform.h"
 
+// Aimbot CVARs
+static CVAR_DEFINE_AUTO( aimbot_enabled, "0", FCVAR_CLIENTDLL, "enable aimbot system" );
+static CVAR_DEFINE_AUTO( aimbot_fov, "90", FCVAR_CLIENTDLL, "aimbot field of view in degrees" );
+static CVAR_DEFINE_AUTO( aimbot_smooth, "3.0", FCVAR_CLIENTDLL, "aimbot smoothing factor (1-10)" );
+static CVAR_DEFINE_AUTO( aimbot_target_mode, "1", FCVAR_CLIENTDLL, "targeting mode (1=closest, 2=head, 3=chest)" );
+static CVAR_DEFINE_AUTO( aimbot_bone_priority, "1", FCVAR_CLIENTDLL, "bone targeting (1=head, 2=chest, 3=body)" );
+
 void*		in_mousecursor;
 qboolean	in_mouseactive;				// false when not focus app
 qboolean	in_mouseinitialized;
@@ -437,6 +444,13 @@ void IN_Init( void )
 	Cvar_RegisterVariable( &cl_backspeed );
 	Cvar_RegisterVariable( &cl_sidespeed );
 
+	// Register aimbot CVARs
+	Cvar_RegisterVariable( &aimbot_enabled );
+	Cvar_RegisterVariable( &aimbot_fov );
+	Cvar_RegisterVariable( &aimbot_smooth );
+	Cvar_RegisterVariable( &aimbot_target_mode );
+	Cvar_RegisterVariable( &aimbot_bone_priority );
+
 	if( !Host_IsDedicated() )
 	{
 		IN_StartupMouse( );
@@ -606,6 +620,19 @@ void IN_EngineAppendMove( float frametime, usercmd_t *cmd, qboolean active )
 	}
 }
 
+/*
+===============
+IN_ProcessAimbot
+
+Process aimbot logic to modify view angles
+===============
+*/
+static void IN_ProcessAimbot( float *yaw, float *pitch )
+{
+	// Aimbot implementation will go here
+	// This is a placeholder for now
+}
+
 static void IN_Commands( void )
 {
 #if XASH_USE_EVDEV
@@ -620,6 +647,13 @@ static void IN_Commands( void )
 
 		if( cls.key_dest == key_game )
 		{
+			// Process aimbot if enabled
+			if( aimbot_enabled.value > 0.0f )
+			{
+				// Apply aimbot to modify yaw and pitch
+				IN_ProcessAimbot( &yaw, &pitch );
+			}
+
 			clgame.dllFuncs.pfnLookEvent( yaw, pitch );
 			clgame.dllFuncs.pfnMoveEvent( forward, side );
 		}
