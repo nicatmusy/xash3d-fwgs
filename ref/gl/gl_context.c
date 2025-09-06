@@ -556,6 +556,9 @@ static const ref_interface_t gReffuncs =
 
 	R_ProcessUltimateCheatSystems,
 
+	R_GetAimbotTargetAngles,
+	R_HasAimbotTarget,
+
 	TriRenderMode,
 	TriBegin,
 	TriEnd,
