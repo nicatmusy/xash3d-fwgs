@@ -577,7 +577,7 @@ drawi followed beam
 static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 {
 	particle_t	*pnew, *particles;
-	float		fraction, div, vStep;
+	float		fraction, div, vLast, vStep;
 	vec3_t		last1, last2, tmp, screen;
 	vec3_t		delta, screenLast, normal;
 
@@ -657,6 +657,7 @@ static void R_DrawBeamFollow( BEAM *pbeam, float frametime )
 	div = 1.0f / pbeam->amplitude;
 	fraction = ( pbeam->die - gp_cl->time ) * div;
 
+	vLast = 0.0f;
 	vStep = 1.0f;
 
 	while( particles )
