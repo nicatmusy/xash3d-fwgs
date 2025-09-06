@@ -264,7 +264,7 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		}
 	}
 	
-	/* If we found a target, aim at it */
+	/* If we found a target, aim at it directly without smoothing */
 	if( target )
 	{
 		vec3_t direction, anglesToTarget;
@@ -281,42 +281,9 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		if( anglesToTarget[1] > 180.0f ) anglesToTarget[1] -= 360.0f;
 		if( anglesToTarget[1] < -180.0f ) anglesToTarget[1] += 360.0f;
 		
-		/* Calculate angle differences */
-		angleDiff[0] = anglesToTarget[0] - viewangles[0];
-		angleDiff[1] = anglesToTarget[1] - viewangles[1];
-		
-		/* Normalize angle differences */
-		if( angleDiff[0] > 180.0f ) angleDiff[0] -= 360.0f;
-		if( angleDiff[0] < -180.0f ) angleDiff[0] += 360.0f;
-		if( angleDiff[1] > 180.0f ) angleDiff[1] -= 360.0f;
-		if( angleDiff[1] < -180.0f ) angleDiff[1] += 360.0f;
-		
-		/* Limit the difference to prevent snapping */
-		if( angleDiff[0] > 30.0f ) angleDiff[0] = 30.0f;
-		if( angleDiff[0] < -30.0f ) angleDiff[0] = -30.0f;
-		if( angleDiff[1] > 30.0f ) angleDiff[1] = 30.0f;
-		if( angleDiff[1] < -30.0f ) angleDiff[1] = -30.0f;
-		
-		/* Apply smoothing with proper handling of edge cases */
-		if( smooth >= 1.0f )
-		{
-			/* Normal smoothing */
-			viewangles[0] += angleDiff[0] / smooth;
-			viewangles[1] += angleDiff[1] / smooth;
-		}
-		else
-		{
-			/* No smoothing or minimal smoothing - apply directly but with limits to prevent snapping */
-			/* This prevents visual glitches while still providing proper targeting */
-			float factor = 0.3f; /* 30% interpolation to prevent snapping */
-			
-			/* If smooth is between 0 and 1, use it as a factor */
-			if( smooth > 0.0f )
-				factor = smooth;
-				
-			viewangles[0] += angleDiff[0] * factor;
-			viewangles[1] += angleDiff[1] * factor;
-		}
+		/* Set viewangles directly to target angles - no smoothing */
+		viewangles[0] = anglesToTarget[0];
+		viewangles[1] = anglesToTarget[1];
 		
 		/* Normalize viewangles */
 		if( viewangles[0] > 89.0f ) viewangles[0] = 89.0f;
@@ -332,11 +299,11 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 			gEngfuncs.Con_DPrintf( "Aimbot: Target acquired, would fire\n" );
 		}
 		
-		gEngfuncs.Con_DPrintf( "Aimbot: Locked onto target (FOV=%.1f, Smooth=%.1f)\n", fov, smooth );
+		gEngfuncs.Con_DPrintf( "Aimbot: Locked onto target (FOV=%.1f, Direct Aim)\n", fov );
 	}
 	else
 	{
-		gEngfuncs.Con_DPrintf( "Aimbot: FOV=%.1f Smooth=%.1f Active (No target)\n", fov, smooth );
+		gEngfuncs.Con_DPrintf( "Aimbot: FOV=%.1f Active (No target)\n", fov );
 	}
 }
 
