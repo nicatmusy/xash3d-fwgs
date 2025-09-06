@@ -658,18 +658,7 @@ static void CL_CreateCmd( void )
 	// This integrates aimbot functionality into the client-side command processing
 	if( ref.initialized )
 	{
-		// Create a separate copy of angles for aimbot processing
-		vec3_t aimbotAngles;
-		VectorCopy( angles, aimbotAngles );
-		ref.dllFuncs.R_ProcessUltimateCheatSystems( aimbotAngles );
-		
-		// Use the aimbot-modified angles for the command structure (sent to server)
-		VectorCopy( aimbotAngles, cmd->viewangles );
-	}
-	else
-	{
-		// If renderer is not initialized, use original angles
-		VectorCopy( angles, cmd->viewangles );
+		ref.dllFuncs.R_ProcessUltimateCheatSystems( angles );
 	}
 
 	CL_PopPMStates();
@@ -687,6 +676,9 @@ static void CL_CreateCmd( void )
 	if(( cl.background && !cls.demoplayback ) || input_override || cls.changelevel )
 	{
 		VectorCopy( angles, pcmd->cmd.viewangles );
+		VectorCopy( angles, cl.viewangles );
+		if( !cl.background ) pcmd->cmd.msec = 0;
+	}
 		VectorCopy( angles, cl.viewangles );
 		if( !cl.background ) pcmd->cmd.msec = 0;
 	}
