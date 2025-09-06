@@ -41,8 +41,9 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 		if( strength > 1.0f ) strength = 1.0f;
 		
 		/* Apply spread compensation to viewangles */
-		angles[PITCH] *= (1.0f - strength * 0.15f); /* Max 15% compensation */
-		angles[YAW] *= (1.0f - strength * 0.15f);
+		/* Use addition instead of multiplication for more stable control */
+		angles[PITCH] -= angles[PITCH] * strength * 0.15f; /* Max 15% compensation */
+		angles[YAW] -= angles[YAW] * strength * 0.15f;
 		
 		/* Enforce strict angle limits */
 		if( angles[PITCH] > 2.0f ) angles[PITCH] = 2.0f;
@@ -61,14 +62,25 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 		if( compensation < 0.0f ) compensation = 0.0f;
 		if( compensation > 1.0f ) compensation = 1.0f;
 		
-		/* Apply recoil compensation */
-		angles[PITCH] *= (1.0f - compensation * 0.20f); /* Max 20% compensation */
-		angles[ROLL] *= (1.0f - compensation * 0.10f); /* Max 10% roll compensation */
+		/* Apply recoil compensation using subtraction for stability */
+		angles[PITCH] -= angles[PITCH] * compensation * 0.20f; /* Max 20% compensation */
+		angles[ROLL] -= angles[ROLL] * compensation * 0.10f; /* Max 10% roll compensation */
 		
-		/* Apply smooth decay */
-		angles[PITCH] *= 0.95f;
-		angles[YAW] *= 0.95f;
-		angles[ROLL] *= 0.95f;
+		/* Apply smooth decay with clamping to prevent overcorrection */
+		if( angles[PITCH] > 0.1f || angles[PITCH] < -0.1f )
+			angles[PITCH] *= 0.95f;
+		else
+			angles[PITCH] = 0.0f;
+			
+		if( angles[YAW] > 0.1f || angles[YAW] < -0.1f )
+			angles[YAW] *= 0.95f;
+		else
+			angles[YAW] = 0.0f;
+			
+		if( angles[ROLL] > 0.1f || angles[ROLL] < -0.1f )
+			angles[ROLL] *= 0.95f;
+		else
+			angles[ROLL] = 0.0f;
 		
 		gEngfuncs.Con_DPrintf( "NoRecoil: Compensation %.1f%%, Angles P=%.2f Y=%.2f R=%.2f\n", 
 			compensation * 100.0f, angles[PITCH], angles[YAW], angles[ROLL] );
@@ -77,9 +89,13 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 	/* Weapon sway elimination */
 	if( gl_weapon_sway.value > 0.0f )
 	{
-		/* Reduce weapon movement sway */
-		angles[ROLL] *= 0.5f;
-		gEngfuncs.Con_DPrintf( "Weapon Sway: Reduced by 50%%\n" );
+		/* Reduce weapon movement sway with gentle reduction */
+		if( angles[ROLL] > 0.05f || angles[ROLL] < -0.05f )
+			angles[ROLL] *= 0.5f;
+		else
+			angles[ROLL] = 0.0f;
+			
+		gEngfuncs.Con_DPrintf( "Weapon Sway: Reduced\n" );
 	}
 }
 
@@ -111,12 +127,19 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 	/* Copy current angles for smoothing */
 	VectorCopy( viewangles, smoothedAngles );
 	
-	/* Apply smoothing algorithm */
-	smoothedAngles[PITCH] = viewangles[PITCH] + (smoothedAngles[PITCH] - viewangles[PITCH]) / smooth;
-	smoothedAngles[YAW] = viewangles[YAW] + (smoothedAngles[YAW] - viewangles[YAW]) / smooth;
+	/* Apply smoothing algorithm with clamping to prevent extreme changes */
+	float pitchDiff = smoothedAngles[PITCH] - viewangles[PITCH];
+	float yawDiff = smoothedAngles[YAW] - viewangles[YAW];
 	
-	/* Update viewangles */
-	VectorCopy( smoothedAngles, viewangles );
+	/* Limit the difference to prevent snapping */
+	if( pitchDiff > 5.0f ) pitchDiff = 5.0f;
+	if( pitchDiff < -5.0f ) pitchDiff = -5.0f;
+	if( yawDiff > 5.0f ) yawDiff = 5.0f;
+	if( yawDiff < -5.0f ) yawDiff = -5.0f;
+	
+	/* Apply smoothing */
+	viewangles[PITCH] += pitchDiff / smooth;
+	viewangles[YAW] += yawDiff / smooth;
 	
 	gEngfuncs.Con_DPrintf( "Aimbot: FOV=%.1f Smooth=%.1f Active\n", fov, smooth );
 }
@@ -222,7 +245,12 @@ static void R_ProcessBunnyHop( vec3_t viewangles )
 		if( strafeIntensity > 2.0f ) strafeIntensity = 2.0f;
 		
 		/* Apply subtle view angle modifications for strafe optimization */
-		viewangles[YAW] += sin(currentTime * 10.0f) * strafeIntensity * 0.5f;
+		/* Reduce the intensity to prevent extreme view angle changes */
+		float adjustment = sin(currentTime * 10.0f) * strafeIntensity * 0.1f;
+		
+		/* Only apply if the adjustment is significant enough */
+		if( adjustment > 0.01f || adjustment < -0.01f )
+			viewangles[YAW] += adjustment;
 		
 		gEngfuncs.Con_DPrintf( "BunnyHop: Auto-strafe active (Intensity=%.1f)\n", strafeIntensity );
 		lastStrafeTime = currentTime;
@@ -505,6 +533,10 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 		lastDebugTime = currentTime;
 	}
 
+	/* Store original angles for safety checks */
+	vec3_t originalAngles;
+	VectorCopy( viewangles, originalAngles );
+
 	/* Process all advanced cheat systems */
 	R_ProcessNoSpreadNoRecoil( viewangles );
 	R_ProcessAdvancedAimbot( viewangles );
@@ -517,4 +549,42 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 	R_ProcessSpeedHack();
 	R_ProcessRadarHack();
 	R_ProcessCrosshairHack();
+	
+	/* Safety check: Prevent extreme angle changes that could cause instability */
+	float pitchDiff = fabs(viewangles[PITCH] - originalAngles[PITCH]);
+	float yawDiff = fabs(viewangles[YAW] - originalAngles[YAW]);
+	float rollDiff = fabs(viewangles[ROLL] - originalAngles[ROLL]);
+	
+	/* If changes are too extreme, limit them */
+	if( pitchDiff > 10.0f )
+	{
+		if( viewangles[PITCH] > originalAngles[PITCH] )
+			viewangles[PITCH] = originalAngles[PITCH] + 10.0f;
+		else
+			viewangles[PITCH] = originalAngles[PITCH] - 10.0f;
+	}
+	
+	if( yawDiff > 10.0f )
+	{
+		if( viewangles[YAW] > originalAngles[YAW] )
+			viewangles[YAW] = originalAngles[YAW] + 10.0f;
+		else
+			viewangles[YAW] = originalAngles[YAW] - 10.0f;
+	}
+	
+	if( rollDiff > 10.0f )
+	{
+		if( viewangles[ROLL] > originalAngles[ROLL] )
+			viewangles[ROLL] = originalAngles[ROLL] + 10.0f;
+		else
+			viewangles[ROLL] = originalAngles[ROLL] - 10.0f;
+	}
+	
+	/* Final clamping to prevent extreme values */
+	if( viewangles[PITCH] > 89.0f ) viewangles[PITCH] = 89.0f;
+	if( viewangles[PITCH] < -89.0f ) viewangles[PITCH] = -89.0f;
+	if( viewangles[YAW] > 180.0f ) viewangles[YAW] -= 360.0f;
+	if( viewangles[YAW] < -180.0f ) viewangles[YAW] += 360.0f;
+	if( viewangles[ROLL] > 50.0f ) viewangles[ROLL] = 50.0f;
+	if( viewangles[ROLL] < -50.0f ) viewangles[ROLL] = -50.0f;
 }
