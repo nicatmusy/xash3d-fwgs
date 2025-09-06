@@ -1071,6 +1071,7 @@ static void R_StudioDrawESPCrosshairHighlight( cl_entity_t *e )
 	vec3_t delta, forward, right, up;
 	vec3_t target_pos;
 	float dist, dot_product;
+	float highlight_pulse;
 	
 	if( !gl_esp_crosshair.value )
 		return;
@@ -1109,7 +1110,7 @@ static void R_StudioDrawESPCrosshairHighlight( cl_entity_t *e )
 		pglEnable( GL_BLEND );
 		pglBlendFunc( GL_SRC_ALPHA, GL_ONE );
 		
-		float highlight_pulse = (sin(gEngfuncs.pfnTime() * 8.0f) + 1.0f) * 0.5f;
+		highlight_pulse = (sin(gEngfuncs.pfnTime() * 8.0f) + 1.0f) * 0.5f;
 		pglColor4f( 1.0f, 1.0f, 1.0f, 0.3f * highlight_pulse );
 		
 		pglPointSize( 8.0f );
@@ -1144,7 +1145,6 @@ static void R_StudioDrawESPInfo( cl_entity_t *e )
 	char	dist_str[32], health_str[16];
 	int	textlen, textheight;
 	rgba_t	text_color;
-	float	font_scale;
 	int	screen_x, screen_y;
 
 	if( !e->player || (!gl_esp_names.value && !gl_esp_distance.value && !gl_esp_health.value) )
@@ -1193,16 +1193,13 @@ static void R_StudioDrawESPInfo( cl_entity_t *e )
 	screen_x = (int)((screen[0] + 1.0f) * 0.5f * RI.viewport[2]);
 	screen_y = (int)((1.0f - screen[1]) * 0.5f * RI.viewport[3]);
 
-	// Font scale based on distance and user preference - Applied to text rendering
-	font_scale = gl_esp_font_size.value;
-	if( dist > 800.0f )
-		font_scale *= 0.8f;
-	else if( dist > 1500.0f )
-		font_scale *= 0.6f;
-
-	// Apply font scaling if supported by the engine
-	// Note: This is a simplified implementation - actual font scaling would require
-	// more complex engine modifications, but we can adjust positioning for better readability
+	// Font scaling note: Actual font scaling would require engine modifications
+	// For now, we adjust positioning based on distance for better readability
+	if( dist > 1500.0f )
+	{
+		// For distant players, we might adjust positioning
+		// but in this implementation we keep it simple
+	}
 
 	y_offset = 0;
 
