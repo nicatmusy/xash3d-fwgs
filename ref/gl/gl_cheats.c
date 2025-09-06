@@ -310,6 +310,36 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles, vec3_t target_angles, qb
 
 /*
 ===============
+R_GetAimbotTargetAngles
+
+Get the current aimbot target angles
+===============
+*/
+qboolean R_GetAimbotTargetAngles( vec3_t target_angles )
+{
+	if( gl_aimbot_has_target )
+	{
+		VectorCopy( gl_aimbot_target_angles, target_angles );
+		return true;
+	}
+	
+	return false;
+}
+
+/*
+===============
+R_HasAimbotTarget
+
+Check if the aimbot has a target
+===============
+*/
+qboolean R_HasAimbotTarget( void )
+{
+	return gl_aimbot_has_target;
+}
+
+/*
+===============
 R_ProcessVisualEnhancements
 
 Visual enhancement system for improved visibility
