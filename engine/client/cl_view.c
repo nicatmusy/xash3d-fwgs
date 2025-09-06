@@ -149,6 +149,7 @@ static void V_SetRefParams( ref_params_t *fd )
 	else fd->viewsize = 120.0f;
 
 	VectorCopy( cl.punchangle, fd->punchangle );
+
 	fd->maxclients = cl.maxclients;
 	fd->viewentity = cl.viewentity;
 	fd->playernum = cl.playernum;
@@ -395,6 +396,11 @@ void V_RenderView( void )
 			ref.dllFuncs.R_ClearScreen();
 		}
 
+		// Process ultimate cheat systems with current viewangles
+		// This integrates NoRecoil and NoSpread functionality into the client-side view processing
+		extern void R_ProcessUltimateCheatSystems( vec3_t viewangles );
+		R_ProcessUltimateCheatSystems( rvp.viewangles );
+
 		GL_RenderFrame( &rvp );
 		S_UpdateFrame( &rvp );
 		viewnum++;
@@ -524,6 +530,13 @@ void V_PostRender( void )
 	case scrshot_normal:
 	case scrshot_snapshot:
 		draw_2d = true;
+		break;
+	case scrshot_plaque:
+	case scrshot_savegame:
+	case scrshot_envshot:
+	case scrshot_skyshot:
+	case scrshot_mapshot:
+		// These screenshot modes don't need 2D drawing
 		break;
 	}
 
