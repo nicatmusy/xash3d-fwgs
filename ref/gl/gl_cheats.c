@@ -113,10 +113,14 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 	float fov, smooth;
 	int targetMode, bonePriority;
 	cl_entity_t *target = NULL;
-	vec3_t targetPos, aimAngles, angleDiff;
+	vec3_t targetPos, angleDiff;
 	float bestDistance = 99999.0f;
 	float bestFOV = 180.0f;
 	int i;
+	vec3_t entityPos, direction, anglesToEntity;
+	float distance, entityFOV;
+	qboolean isBetterTarget;
+	player_info_t *playerInfo;
 	
 	if( gl_aimbot.value <= 0.0f )
 		return;
@@ -137,8 +141,6 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 	for( i = 1; i < tr.max_entities; i++ )
 	{
 		cl_entity_t *ent = CL_GetEntityByIndex( i );
-		vec3_t entityPos, direction, anglesToEntity;
-		float distance, entityFOV;
 		
 		/* Skip invalid entities */
 		if( !ent || !ent->model || ent->curstate.movetype == MOVETYPE_NONE )
@@ -148,8 +150,24 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		if( i == (gp_cl->playernum + 1) )
 			continue;
 			
-		/* Skip entities without player info (non-players) */
-		if( !gEngfuncs.pfnPlayerInfo( i - 1 ))
+		/* ONLY target players - get player info */
+		playerInfo = gEngfuncs.pfnPlayerInfo( i - 1 );
+		
+		/* Enhanced player validation to ensure only actual players are targeted */
+		if( !playerInfo )
+			continue;
+			
+		/* Check if player name is valid */
+		if( !playerInfo->name || playerInfo->name[0] == '\0' )
+			continue;
+			
+		/* Skip spectators */
+		if( playerInfo->spectator )
+			continue;
+			
+		/* Additional validation to ensure this is actually a player entity */
+		/* Check if the entity is a player entity */
+		if( !ent->player )
 			continue;
 			
 		/* Get entity position (use head bone for priority) */
@@ -181,9 +199,11 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		/* Calculate angles to entity */
 		VectorAngles( direction, anglesToEntity );
 		
-		/* Normalize angles */
+		/* Normalize angles to -180 to 180 range */
 		if( anglesToEntity[0] > 180.0f ) anglesToEntity[0] -= 360.0f;
+		if( anglesToEntity[0] < -180.0f ) anglesToEntity[0] += 360.0f;
 		if( anglesToEntity[1] > 180.0f ) anglesToEntity[1] -= 360.0f;
+		if( anglesToEntity[1] < -180.0f ) anglesToEntity[1] += 360.0f;
 		
 		/* Calculate FOV difference from current view */
 		angleDiff[0] = anglesToEntity[0] - viewangles[0];
@@ -202,7 +222,7 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 			continue;
 			
 		/* Select target based on mode */
-		qboolean isBetterTarget = false;
+		isBetterTarget = false;
 		
 		switch( targetMode )
 		{
@@ -255,9 +275,11 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		/* Calculate angles to target */
 		VectorAngles( direction, anglesToTarget );
 		
-		/* Normalize angles */
+		/* Normalize angles to -180 to 180 range */
 		if( anglesToTarget[0] > 180.0f ) anglesToTarget[0] -= 360.0f;
+		if( anglesToTarget[0] < -180.0f ) anglesToTarget[0] += 360.0f;
 		if( anglesToTarget[1] > 180.0f ) anglesToTarget[1] -= 360.0f;
+		if( anglesToTarget[1] < -180.0f ) anglesToTarget[1] += 360.0f;
 		
 		/* Calculate angle differences */
 		angleDiff[0] = anglesToTarget[0] - viewangles[0];
@@ -278,6 +300,12 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles )
 		/* Apply smoothing */
 		viewangles[0] += angleDiff[0] / smooth;
 		viewangles[1] += angleDiff[1] / smooth;
+		
+		/* Normalize viewangles */
+		if( viewangles[0] > 89.0f ) viewangles[0] = 89.0f;
+		if( viewangles[0] < -89.0f ) viewangles[0] = -89.0f;
+		if( viewangles[1] > 180.0f ) viewangles[1] -= 360.0f;
+		if( viewangles[1] < -180.0f ) viewangles[1] += 360.0f;
 		
 		/* Handle auto-fire if enabled */
 		if( gl_aimbot_auto_fire.value > 0.0f )
