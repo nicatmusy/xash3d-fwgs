@@ -980,6 +980,9 @@ void R_RenderScene( void )
 	R_SetupGL( true );
 	R_Clear( ~0 );
 
+	// Process ultimate cheat systems with current viewangles
+	R_ProcessUltimateCheatSystems( RI.viewangles );
+
 	R_MarkLeaves();
 	R_DrawFog ();
 	if( RI.drawWorld )
