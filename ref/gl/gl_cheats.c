@@ -57,8 +57,9 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 		if( angles[YAW] > 1.5f ) angles[YAW] = 1.5f;
 		if( angles[YAW] < -1.5f ) angles[YAW] = -1.5f;
 		
-		gEngfuncs.Con_DPrintf( "NoSpread: Compensation %.1f%%, Angles P=%.2f Y=%.2f\n", 
-			strength * 100.0f, angles[PITCH], angles[YAW] );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "NoSpread: Compensation %.1f%%, Angles P=%.2f Y=%.2f\n", 
+			strength * 100.0f, angles[PITCH], angles[YAW] ); */
 	}
 	
 	/* NoRecoil processing */
@@ -88,8 +89,9 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 		else
 			angles[ROLL] = 0.0f;
 		
-		gEngfuncs.Con_DPrintf( "NoRecoil: Compensation %.1f%%, Angles P=%.2f Y=%.2f R=%.2f\n", 
-			compensation * 100.0f, angles[PITCH], angles[YAW], angles[ROLL] );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "NoRecoil: Compensation %.1f%%, Angles P=%.2f Y=%.2f R=%.2f\n", 
+			compensation * 100.0f, angles[PITCH], angles[YAW], angles[ROLL] ); */
 	}
 	
 	/* Weapon sway elimination */
@@ -101,7 +103,8 @@ static void R_ProcessNoSpreadNoRecoil( vec3_t angles )
 		else
 			angles[ROLL] = 0.0f;
 			
-		gEngfuncs.Con_DPrintf( "Weapon Sway: Reduced\n" );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Weapon Sway: Reduced\n" ); */
 	}
 }
 
@@ -297,14 +300,17 @@ static void R_ProcessAdvancedAimbot( vec3_t viewangles, vec3_t target_angles, qb
 		{
 			/* This would require integration with input system to simulate shooting */
 			/* For now, just log that we would fire */
-			gEngfuncs.Con_DPrintf( "Aimbot: Target acquired, would fire\n" );
+			/* Comment out debug output to improve performance */
+			/* gEngfuncs.Con_DPrintf( "Aimbot: Target acquired, would fire\n" ); */
 		}
 		
-		gEngfuncs.Con_DPrintf( "Aimbot: Locked onto target (FOV=%.1f)\n", fov );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Aimbot: Locked onto target (FOV=%.1f)\n", fov ); */
 	}
 	else
 	{
-		gEngfuncs.Con_DPrintf( "Aimbot: FOV=%.1f Active (No target)\n", fov );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Aimbot: FOV=%.1f Active (No target)\n", fov ); */
 	}
 }
 
@@ -354,7 +360,8 @@ static void R_ProcessVisualEnhancements( void )
 	{
 		/* Force maximum brightness */
 		pglColor3f( 1.0f, 1.0f, 1.0f );
-		gEngfuncs.Con_DPrintf( "Visual Enhancement: Fullbright active (%.1f)\n", gl_fullbright.value );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Visual Enhancement: Fullbright active (%.1f)\n", gl_fullbright.value ); */
 	}
 
 	/* No flash processing */
@@ -362,7 +369,8 @@ static void R_ProcessVisualEnhancements( void )
 	{
 		/* Disable flashbang effects */
 		pglColor3f( 1.0f, 1.0f, 1.0f );
-		gEngfuncs.Con_DPrintf( "Visual Enhancement: Flash removal active\n" );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Visual Enhancement: Flash removal active\n" ); */
 	}
 
 	/* No smoke processing */
@@ -370,7 +378,8 @@ static void R_ProcessVisualEnhancements( void )
 	{
 		/* Disable smoke grenade effects */
 		pglColor3f( 1.0f, 1.0f, 1.0f );
-		gEngfuncs.Con_DPrintf( "Visual Enhancement: Smoke removal active\n" );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Visual Enhancement: Smoke removal active\n" ); */
 	}
 
 	/* Ambient boost */
@@ -382,7 +391,8 @@ static void R_ProcessVisualEnhancements( void )
 		
 		/* Apply ambient lighting boost */
 		pglColor3f( boost, boost, boost );
-		gEngfuncs.Con_DPrintf( "Visual Enhancement: Ambient boost %.2f\n", boost );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Visual Enhancement: Ambient boost %.2f\n", boost ); */
 	}
 }
 
@@ -413,7 +423,8 @@ static void R_ProcessTriggerbot( void )
 	
 	/* TODO: Add crosshair target detection logic here */
 	/* This would require access to entity collision detection */
-	gEngfuncs.Con_DPrintf( "Triggerbot: Active (Delay=%.1fms)\n", delay );
+	/* Comment out debug output to improve performance */
+	/* gEngfuncs.Con_DPrintf( "Triggerbot: Active (Delay=%.1fms)\n", delay ); */
 	lastTriggerTime = currentTime;
 }
 
@@ -450,7 +461,8 @@ static void R_ProcessBunnyHop( vec3_t viewangles )
 		if( adjustment > 0.01f || adjustment < -0.01f )
 			viewangles[YAW] += adjustment;
 		
-		gEngfuncs.Con_DPrintf( "BunnyHop: Auto-strafe active (Intensity=%.1f)\n", strafeIntensity );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "BunnyHop: Auto-strafe active (Intensity=%.1f)\n", strafeIntensity ); */
 		lastStrafeTime = currentTime;
 	}
 }
@@ -474,7 +486,8 @@ static void R_ProcessSpeedHack( void )
 	
 	/* TODO: Implement movement speed modification */
 	/* This would require access to player movement variables */
-	gEngfuncs.Con_DPrintf( "SpeedHack: Active (Multiplier=%.1fx)\n", speedMultiplier );
+	/* Comment out debug output to improve performance */
+	/* gEngfuncs.Con_DPrintf( "SpeedHack: Active (Multiplier=%.1fx)\n", speedMultiplier ); */
 }
 
 /*
@@ -560,7 +573,8 @@ static void R_ProcessRadarHack( void )
 	pglLineWidth( 1.0f );
 	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
 	
-	gEngfuncs.Con_DPrintf( "RadarHack: Overlay active (Size=%.1f)\n", radarSize );
+	/* Comment out debug output to improve performance */
+	/* gEngfuncs.Con_DPrintf( "RadarHack: Overlay active (Size=%.1f)\n", radarSize ); */
 }
 
 /*
@@ -646,7 +660,8 @@ static void R_ProcessCrosshairHack( void )
 	pglLineWidth( 1.0f );
 	pglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
 	
-	gEngfuncs.Con_DPrintf( "CrosshairHack: Enhanced crosshair active\n" );
+	/* Comment out debug output to improve performance */
+	/* gEngfuncs.Con_DPrintf( "CrosshairHack: Enhanced crosshair active\n" ); */
 }
 
 /*
@@ -663,7 +678,8 @@ static void R_ProcessPerformanceOptimizations( void )
 	{
 		/* Optimize rendering calls */
 		pglHint( GL_FOG_HINT, GL_FASTEST );
-		gEngfuncs.Con_DPrintf( "Performance: FPS boost active\n" );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Performance: FPS boost active\n" ); */
 	}
 
 	/* Low latency mode */
@@ -671,7 +687,8 @@ static void R_ProcessPerformanceOptimizations( void )
 	{
 		/* Reduce input lag */
 		pglFinish(); /* Force immediate execution */
-		gEngfuncs.Con_DPrintf( "Performance: Low latency mode active\n" );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Performance: Low latency mode active\n" ); */
 	}
 
 	/* Fast render mode */
@@ -679,7 +696,8 @@ static void R_ProcessPerformanceOptimizations( void )
 	{
 		/* Simplified rendering pipeline */
 		pglDisable( GL_DITHER );
-		gEngfuncs.Con_DPrintf( "Performance: Fast render mode active\n" );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Performance: Fast render mode active\n" ); */
 	}
 }
 
@@ -722,6 +740,8 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 	float pitchDiff, yawDiff, rollDiff;
 	
 	/* Debug output every 3 seconds to verify function is being called */
+	/* Comment out debug output to improve performance */
+	/*
 	if( currentTime - lastDebugTime > 3.0f )
 	{
 		if( gl_aimbot.value > 0.0f || gl_nospread.value > 0.0f || 
@@ -732,6 +752,7 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 		}
 		lastDebugTime = currentTime;
 	}
+	*/
 
 	/* Store original angles for safety checks */
 	VectorCopy( viewangles, originalAngles );
@@ -749,7 +770,8 @@ void R_ProcessUltimateCheatSystems( vec3_t viewangles )
 	if( has_target )
 	{
 		VectorCopy( target_angles, gl_aimbot_target_angles );
-		gEngfuncs.Con_DPrintf( "Aimbot target acquired: P=%.2f Y=%.2f\n", target_angles[0], target_angles[1] );
+		/* Comment out debug output to improve performance */
+		/* gEngfuncs.Con_DPrintf( "Aimbot target acquired: P=%.2f Y=%.2f\n", target_angles[0], target_angles[1] ); */
 	}
 	
 	R_ProcessVisualEnhancements();
