@@ -26,6 +26,10 @@ GNU General Public License for more details.
 #include "cursor_type.h"
 #include "platform/platform.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 // Aimbot CVARs
 static CVAR_DEFINE_AUTO( aimbot_enabled, "0", FCVAR_CLIENTDLL, "enable aimbot system" );
 static CVAR_DEFINE_AUTO( aimbot_fov, "90", FCVAR_CLIENTDLL, "aimbot field of view in degrees" );
@@ -401,6 +405,7 @@ void IN_MouseEvent( int key, int down )
 
 /*
 ==============
+==============
 IN_MWheelEvent
 
 direction is negative for wheel down, otherwise wheel up
@@ -629,8 +634,202 @@ Process aimbot logic to modify view angles
 */
 static void IN_ProcessAimbot( float *yaw, float *pitch )
 {
-	// Aimbot implementation will go here
-	// This is a placeholder for now
+	float fov, smooth;
+	int targetMode, bonePriority;
+	cl_entity_t *target = NULL;
+	vec3_t targetPos, angleDiff;
+	float bestDistance = 99999.0f;
+	float bestFOV = 180.0f;
+	int i;
+	vec3_t entityPos, direction, anglesToEntity;
+	float distance, entityFOV;
+	qboolean isBetterTarget;
+	vec3_t viewangles;
+	
+	// Get current view angles
+	viewangles[YAW] = *yaw;
+	viewangles[PITCH] = *pitch;
+	viewangles[ROLL] = 0.0f; // Roll is not used in aimbot
+	
+	if( aimbot_enabled.value <= 0.0f )
+		return;
+		
+	/* Get aimbot settings */
+	fov = aimbot_fov.value;
+	targetMode = (int)aimbot_target_mode.value;
+	bonePriority = (int)aimbot_bone_priority.value;
+	smooth = aimbot_smooth.value;
+	
+	/* Validate settings */
+	if( fov < 30.0f ) fov = 30.0f;
+	if( fov > 180.0f ) fov = 180.0f;
+	if( smooth < 1.0f ) smooth = 1.0f;
+	if( smooth > 10.0f ) smooth = 10.0f;
+	
+	/* Scan entities to find valid targets */
+	for( i = 1; i < clgame.maxEntities; i++ )
+	{
+		cl_entity_t *ent = CL_GetEntityByIndex( i );
+		
+		/* Skip invalid entities */
+		if( !ent || !ent->model || ent->curstate.movetype == MOVETYPE_NONE )
+			continue;
+			
+		/* Skip the local player */
+		if( i == (cl.playernum + 1) )
+			continue;
+			
+		/* Skip entities without player info (non-players) */
+		if( !clgame.dllFuncs.pfnPlayerInfo || !clgame.dllFuncs.pfnPlayerInfo( i - 1 ) )
+			continue;
+			
+		/* Get entity position (use head bone for priority) */
+		if( bonePriority == 1 ) /* Head priority */
+		{
+			/* Approximate head position */
+			VectorCopy( ent->origin, entityPos );
+			entityPos[2] += 20.0f; /* Head is typically ~20 units above origin */
+		}
+		else if( bonePriority == 2 ) /* Chest priority */
+		{
+			/* Approximate chest position */
+			VectorCopy( ent->origin, entityPos );
+			entityPos[2] += 10.0f; /* Chest is typically ~10 units above origin */
+		}
+		else /* Body/default */
+		{
+			VectorCopy( ent->origin, entityPos );
+		}
+		
+		/* Calculate distance to entity */
+		VectorSubtract( entityPos, cl.simorg, direction );
+		distance = VectorLength( direction );
+		
+		/* Skip entities that are too far */
+		if( distance > 8192.0f )
+			continue;
+			
+		/* Calculate angles to entity */
+		VectorAngles( direction, anglesToEntity );
+		
+		/* Normalize angles to -180 to 180 range */
+		if( anglesToEntity[0] > 180.0f ) anglesToEntity[0] -= 360.0f;
+		if( anglesToEntity[0] < -180.0f ) anglesToEntity[0] += 360.0f;
+		if( anglesToEntity[1] > 180.0f ) anglesToEntity[1] -= 360.0f;
+		if( anglesToEntity[1] < -180.0f ) anglesToEntity[1] += 360.0f;
+		
+		/* Calculate FOV difference from current view */
+		angleDiff[0] = anglesToEntity[0] - viewangles[0];
+		angleDiff[1] = anglesToEntity[1] - viewangles[1];
+		
+		/* Normalize angle differences */
+		if( angleDiff[0] > 180.0f ) angleDiff[0] -= 360.0f;
+		if( angleDiff[0] < -180.0f ) angleDiff[0] += 360.0f;
+		if( angleDiff[1] > 180.0f ) angleDiff[1] -= 360.0f;
+		if( angleDiff[1] < -180.0f ) angleDiff[1] += 360.0f;
+		
+		entityFOV = sqrt( angleDiff[0] * angleDiff[0] + angleDiff[1] * angleDiff[1] );
+		
+		/* Skip entities outside FOV */
+		if( entityFOV > fov )
+			continue;
+			
+		/* Select target based on mode */
+		isBetterTarget = false;
+		
+		switch( targetMode )
+		{
+		case 1: /* Closest distance */
+			if( distance < bestDistance )
+			{
+				isBetterTarget = true;
+			}
+			break;
+			
+		case 2: /* Head priority (already handled by bone selection) */
+			if( entityFOV < bestFOV )
+			{
+				isBetterTarget = true;
+			}
+			break;
+			
+		case 3: /* Chest priority (already handled by bone selection) */
+			if( entityFOV < bestFOV )
+			{
+				isBetterTarget = true;
+			}
+			break;
+			
+		default: /* FOV priority */
+			if( entityFOV < bestFOV )
+			{
+				isBetterTarget = true;
+			}
+			break;
+		}
+		
+		if( isBetterTarget )
+		{
+			target = ent;
+			VectorCopy( entityPos, targetPos );
+			bestDistance = distance;
+			bestFOV = entityFOV;
+		}
+	}
+	
+	/* If we found a target, aim at it */
+	if( target )
+	{
+		vec3_t direction, anglesToTarget;
+		
+		/* Calculate direction to target */
+		VectorSubtract( targetPos, cl.simorg, direction );
+		
+		/* Calculate angles to target */
+		VectorAngles( direction, anglesToTarget );
+		
+		/* Normalize angles to -180 to 180 range */
+		if( anglesToTarget[0] > 180.0f ) anglesToTarget[0] -= 360.0f;
+		if( anglesToTarget[0] < -180.0f ) anglesToTarget[0] += 360.0f;
+		if( anglesToTarget[1] > 180.0f ) anglesToTarget[1] -= 360.0f;
+		if( anglesToTarget[1] < -180.0f ) anglesToTarget[1] += 360.0f;
+		
+		/* Calculate angle differences */
+		angleDiff[0] = anglesToTarget[0] - viewangles[0];
+		angleDiff[1] = anglesToTarget[1] - viewangles[1];
+		
+		/* Normalize angle differences */
+		if( angleDiff[0] > 180.0f ) angleDiff[0] -= 360.0f;
+		if( angleDiff[0] < -180.0f ) angleDiff[0] += 360.0f;
+		if( angleDiff[1] > 180.0f ) angleDiff[1] -= 360.0f;
+		if( angleDiff[1] < -180.0f ) angleDiff[1] += 360.0f;
+		
+		/* Limit the difference to prevent snapping */
+		if( angleDiff[0] > 30.0f ) angleDiff[0] = 30.0f;
+		if( angleDiff[0] < -30.0f ) angleDiff[0] = -30.0f;
+		if( angleDiff[1] > 30.0f ) angleDiff[1] = 30.0f;
+		if( angleDiff[1] < -30.0f ) angleDiff[1] = -30.0f;
+		
+		/* Apply smoothing */
+		viewangles[0] += angleDiff[0] / smooth;
+		viewangles[1] += angleDiff[1] / smooth;
+		
+		/* Normalize viewangles */
+		if( viewangles[0] > 89.0f ) viewangles[0] = 89.0f;
+		if( viewangles[0] < -89.0f ) viewangles[0] = -89.0f;
+		if( viewangles[1] > 180.0f ) viewangles[1] -= 360.0f;
+		if( viewangles[1] < -180.0f ) viewangles[1] += 360.0f;
+		
+		/* Update the yaw and pitch values */
+		*yaw = viewangles[YAW];
+		*pitch = viewangles[PITCH];
+		
+		gEngfuncs.Con_DPrintf( "Aimbot: Locked onto target (FOV=%.1f, Smooth=%.1f)\n", fov, smooth );
+	}
+	else
+	{
+		gEngfuncs.Con_DPrintf( "Aimbot: FOV=%.1f Smooth=%.1f Active (No target)\n", fov, smooth );
+	}
 }
 
 static void IN_Commands( void )
