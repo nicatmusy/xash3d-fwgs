@@ -1013,6 +1013,35 @@ static void SV_ListMessages_f( void )
 	Con_Printf( "Total %i messages\n", i - 1 );
 }
 
+void SV_ServerStats_f( void )
+{
+    int players, bots;
+    int active_clients = 0; // Değişkenleri fonksiyonun BAŞINDA tanımla
+    int i;
+    
+    Con_Printf("=== Server Statistics ===\n");
+    
+    // Uptime
+    Con_Printf("Uptime: %.2f hours\n", host.realtime / 3600.0);
+    
+    // Players
+    SV_GetPlayerCount( &players, &bots );
+    Con_Printf("Players: %d/%d (Bots: %d)\n", players, svs.maxclients, bots);
+    
+    // Active clients sayısını hesapla
+    for( i = 0; i < svs.maxclients; i++ )
+    {
+        if( svs.clients[i].state >= cs_connected )
+            active_clients++;
+    }
+
+       // Map info
+    Con_Printf("Map: %s\n", sv.name);
+    
+    Con_Printf("=== Server Statistics ===\n");
+    }
+}
+
 /*
 ==================
 SV_InitHostCommands
@@ -1025,6 +1054,7 @@ void SV_InitHostCommands( void )
 {
 	Cmd_AddRestrictedCommand( "map", SV_Map_f, "start new level" );
 	Cmd_AddCommand( "maps", SV_Maps_f, "list maps" );
+	Cmd_AddCommand("serverstats", SV_ServerStats_f, "prints server stats");
 
 	if( host.type == HOST_NORMAL )
 	{
