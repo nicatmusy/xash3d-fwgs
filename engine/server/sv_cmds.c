@@ -1016,8 +1016,6 @@ static void SV_ListMessages_f( void )
 void SV_ServerStats_f( void )
 {
     int players, bots;
-    int active_clients = 0; // Değişkenleri fonksiyonun BAŞINDA tanımla
-    int i;
     
     Con_Printf("=== Server Statistics ===\n");
     
