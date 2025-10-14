@@ -457,6 +457,10 @@ static void SV_ConnectClient( netadr_t from )
 	newcl->next_checkpingtime = -1.0;
 
 	SV_MaybeNotifyPlayerCountChange( newcl, NET_AdrToString( newcl->netchan.remote_address ));
+	SV_ClientPrintf( newcl, "^2OLD SCHOOL CS\n" );
+	SV_ClientPrintf( newcl, "^2Welcome to OSCS\n" );
+	SV_ClientPrintf( newcl, "^2the only address for quality\n" );
+	SV_ClientPrintf( newcl, "^2t.me/@oscsgroup\n" );
 }
 
 /*
