@@ -1012,10 +1012,11 @@ static void SV_ListMessages_f( void )
 
 	Con_Printf( "Total %i messages\n", i - 1 );
 }
-
 void SV_ServerStats_f( void )
 {
     int players, bots;
+    int active_clients = 0; // Değişkenleri fonksiyonun BAŞINDA tanımla
+    int i;
     
     Con_Printf("=== Server Statistics ===\n");
     
@@ -1032,11 +1033,19 @@ void SV_ServerStats_f( void )
         if( svs.clients[i].state >= cs_connected )
             active_clients++;
     }
-
-       // Map info
+    
+    Con_Printf("Active Connections: %d\n", active_clients);
+    
+    // Entities
+    Con_Printf("Entities: %d\n", svgame.numEntities);
+    
+    // Map info
     Con_Printf("Map: %s\n", sv.name);
     
-    Con_Printf("=== Server Statistics ===\n");
+    // Game info
+    if( svgame.globals )
+    {
+        Con_Printf("Game Time: %.2f\n", svgame.globals->time);
     }
 }
 
@@ -1053,7 +1062,6 @@ void SV_InitHostCommands( void )
 	Cmd_AddRestrictedCommand( "map", SV_Map_f, "start new level" );
 	Cmd_AddCommand( "maps", SV_Maps_f, "list maps" );
 	Cmd_AddCommand("serverstats", SV_ServerStats_f, "prints server stats");
-
 	if( host.type == HOST_NORMAL )
 	{
 		Cmd_AddRestrictedCommand( "newgame", SV_NewGame_f, "begin new game" );
