@@ -802,7 +802,9 @@ void Con_Init( void )
 
 	Con_ClearField( &con.chat );
 	con.chat.widthInChars = con.linewidth;
-
+	
+	// Cmd_AddCommand satırlarını bul ve ekle:
+    Cmd_AddCommand("antiban", AntiBan_Toggle_f);
 	Cmd_AddCommand( "toggleconsole", Con_ToggleConsole_f, "opens or closes the console" );
 	Cmd_AddRestrictedCommand( "clear", Con_Clear_f, "clear console history" );
 	Cmd_AddCommand( "messagemode", Con_MessageMode_f, "enable message mode \"say\"" );
