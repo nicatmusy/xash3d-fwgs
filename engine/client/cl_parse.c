@@ -2523,7 +2523,12 @@ void CL_ParseServerMessage( sizebuf_t *msg )
 	int		cmd;
 	int		old_background;
 	const char	*s;
-
+	
+	const char *cmd = MSG_ReadString(); 
+    if(CL_FilterServerCommand(cmd)) 
+    { // Komut engellendi, işleme devam etme 
+     return; 
+     }
 	// parse the message
 	while( 1 )
 	{
