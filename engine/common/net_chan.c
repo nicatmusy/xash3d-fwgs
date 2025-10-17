@@ -94,6 +94,8 @@ static CVAR_DEFINE_AUTO( net_qport, "0", FCVAR_READ_ONLY, "current quake netport
 CVAR_DEFINE_AUTO( net_send_debug, "0", FCVAR_PRIVILEGED, "enable debugging output for outgoing messages" );
 CVAR_DEFINE_AUTO( net_recv_debug, "0", FCVAR_PRIVILEGED, "enable debugging output for incoming messages" );
 
+static qboolean g_bAntiBan = false;
+
 int	net_drop;
 netadr_t	net_from;
 sizebuf_t	net_message;
@@ -160,6 +162,35 @@ NETWORK PACKET SPLIT
 
 =================================
 */
+
+// Değişkenleri global olarak tanıml
+// Anti-ban filtresi fonksiyonu
+static qboolean CL_FilterServerCommand(const char *cmd)
+{
+    if(g_bAntiBan)
+    {
+        // Kick/ban komutlarını engelle
+        if(strstr(cmd, "kick") || strstr(cmd, "ban") || strstr(cmd, "amx_"))
+        {
+            // Mevcut oyuncu bilgilerini al
+            if(strstr(cmd, g_szCurrentPlayerName) || strstr(cmd, g_szCurrentSteamID))
+            {
+                // Komutu sessizce engelle - server'a yanıt verme
+                Con_DPrintf("Blocked server command: %s\n", cmd);
+                return true;
+            }
+        }
+        
+        // "user not in game" benzeri hataları simüle et
+        if(strstr(cmd, "status") || strstr(cmd, "users"))
+        {
+            // Bazı sorgu komutlarını manipüle et
+            Con_DPrintf("Filtered status command\n");
+        }
+    }
+    
+    return false;
+}
 
 /*
 ======================
