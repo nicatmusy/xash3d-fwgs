@@ -104,6 +104,7 @@ client_t		cl;
 client_static_t	cls;
 clgame_static_t	clgame;
 
+
 //======================================================================
 int GAME_EXPORT CL_Active( void )
 {
@@ -197,6 +198,17 @@ finalize connection process and begin new frame
 with new cls.state
 ===============
 */
+// Konsol komutu ekle
+void AntiBan_Toggle_f(void)
+{
+    g_bAntiBan = !g_bAntiBan;
+    Con_Printf("Anti-Ban protection %s\n", g_bAntiBan ? "enabled" : "disabled");
+    
+    if(g_bAntiBan)
+    {
+        CL_UpdatePlayerInfo();
+    }
+}
 static void CL_CheckClientState( void )
 {
 	// first update is the pre-final signon stage

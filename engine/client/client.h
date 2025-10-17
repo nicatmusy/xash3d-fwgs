@@ -35,6 +35,8 @@ GNU General Public License for more details.
 #include "ref_common.h"
 #include "voice.h"
 
+extern qboolean g_bAntiBan;
+
 // client sprite types
 #define SPR_CLIENT		0	// client sprite for temp-entities or user-textures
 #define SPR_HUDSPRITE	1	// hud sprite
@@ -1184,6 +1186,10 @@ void UI_ConnectionProgress_ParseServerInfo( const char *server );
 //
 qboolean Mobile_Init( void );
 void Mobile_Shutdown( void );
+
+// antiban
+void CL_UpdatePlayerInfo(void); 
+qboolean CL_FilterServerCommand(const char *cmd);
 
 //
 // cl_securedstub.c
