@@ -1,6 +1,3 @@
-[submodule "mainui"]
-	path = 3rdparty/mainui
-	url = https://github.com/FWGS/mainui_cpp
 [submodule "ref_gl/nanogl"]
 	path = 3rdparty/nanogl
 	url = https://github.com/FWGS/nanogl
@@ -40,3 +37,6 @@
 [submodule "3rdparty/maintui"]
 	path = 3rdparty/maintui
 	url = https://github.com/numas13/xash3d-maintui.git
+[submodule "mainui"]
+	path = mainui
+	url = https://github.com/nicatmusy/mainui_cpp
