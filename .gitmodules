@@ -37,6 +37,6 @@
 [submodule "3rdparty/maintui"]
 	path = 3rdparty/maintui
 	url = https://github.com/numas13/xash3d-maintui.git
-[submodule "mainui"]
-	path = mainui
+[submodule "3rdparty/mainui"]
+	path = 3rdparty/mainui
 	url = https://github.com/nicatmusy/mainui_cpp
