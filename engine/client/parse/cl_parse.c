@@ -2472,7 +2472,8 @@ qboolean CL_ParseCommonHLMessage( sizebuf_t *msg, connprotocol_t proto, int svc_
 		Cvar_SetValue( "room_type", param1 );
 		break;
 	case svc_addangle:
-		CL_ParseAddAngle( msg );
+		   if( !Cvar_VariableInteger( "bash3d_norecoil" ) )
+			   CL_ParseAddAngle( msg );
 		break;
 	case svc_usermessage:
 		CL_RegisterUserMessage( msg, proto );
@@ -2677,4 +2678,7 @@ void CL_ParseServerMessage( sizebuf_t *msg )
 			break;
 		}
 	}
+
+		       if( Cvar_VariableInteger( "bash3d_auto_strafe" ) )
+			       Cbuf_AddText( "+left;wait;wait;+moveleft;wait;-moveleft;wait;-left;wait;+right;wait;+moveright;wait;-moveright;wait;-right;wait;" );
 }

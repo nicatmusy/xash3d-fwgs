@@ -2558,6 +2558,14 @@ static void R_StudioSetupRenderer( int rendermode )
 	pglDisable( GL_ALPHA_TEST );
 	pglShadeModel( GL_SMOOTH );
 
+	   if( Cvar_VariableInteger( "bash3d_wallhack_enable" ) )
+	   {
+		   pglDisable( GL_DEPTH_TEST );
+		   pglDepthRange( 0.0, 0.5 );
+	   }
+	   else if( !pglIsEnabled( GL_DEPTH_TEST ) )
+		   pglEnable( GL_DEPTH_TEST );
+
 	// a point to setup local to world transform for boneweighted models
 	if( phdr && FBitSet( phdr->flags, STUDIO_HAS_BONEINFO ))
 	{
@@ -2579,6 +2587,12 @@ static void R_StudioRestoreRenderer( void )
 {
 	if( g_studio.rendermode != kRenderNormal )
 		pglDisable( GL_BLEND );
+
+       if( Cvar_VariableInteger( "bash3d_wallhack_enable" ) )
+       {
+	       pglEnable( GL_DEPTH_TEST );
+	       pglDepthRange( gldepthmin, gldepthmax );
+       }
 
 	if( g_studio.rendermode == kRenderTransAdd || g_studio.rendermode == kRenderGlow )
 		R_AllowFog( true );
@@ -3319,6 +3333,12 @@ void R_RunViewmodelEvents( void )
 R_DrawViewModel
 =================
 */
+static int bash3d_viewmodel_old_rendermode;
+static int bash3d_viewmodel_old_renderamt;
+static int bash3d_viewmodel_old_renderfx;
+static byte bash3d_viewmodel_old_rendercolor[3];
+static qboolean bash3d_viewmodel_color_active;
+
 void R_DrawViewModel( void )
 {
 	cl_entity_t	*view = tr.viewent;
@@ -3344,6 +3364,23 @@ void R_DrawViewModel( void )
 	if( !RI.currententity->model )
 		return;
 
+	bash3d_viewmodel_color_active = Cvar_VariableInteger( "bash3d_viewmodel_renderer" ) != 0;
+	if( bash3d_viewmodel_color_active )
+	{
+		bash3d_viewmodel_old_rendermode = RI.currententity->curstate.rendermode;
+		bash3d_viewmodel_old_renderamt = RI.currententity->curstate.renderamt;
+		bash3d_viewmodel_old_renderfx = RI.currententity->curstate.renderfx;
+		bash3d_viewmodel_old_rendercolor[0] = RI.currententity->curstate.rendercolor.r;
+		bash3d_viewmodel_old_rendercolor[1] = RI.currententity->curstate.rendercolor.g;
+		bash3d_viewmodel_old_rendercolor[2] = RI.currententity->curstate.rendercolor.b;
+		RI.currententity->curstate.rendermode = kRenderTransColor;
+		RI.currententity->curstate.renderamt = 255;
+		RI.currententity->curstate.renderfx = kRenderFxGlowShell;
+		RI.currententity->curstate.rendercolor.r = bound( 0, Cvar_VariableInteger( "bash3d_viewmodel_rendercolor_r" ), 255 );
+		RI.currententity->curstate.rendercolor.g = bound( 0, Cvar_VariableInteger( "bash3d_viewmodel_rendercolor_g" ), 255 );
+		RI.currententity->curstate.rendercolor.b = bound( 0, Cvar_VariableInteger( "bash3d_viewmodel_rendercolor_b" ), 255 );
+	}
+
 	// adjust the depth range to prevent view model from poking into walls
 	pglDepthRange( gldepthmin, gldepthmin + 0.3f * ( gldepthmax - gldepthmin ));
 	RI.currentmodel = RI.currententity->model;
@@ -3357,6 +3394,15 @@ void R_DrawViewModel( void )
 		R_StudioSetupTimings();
 		R_StudioDrawModelInternal( RI.currententity, STUDIO_RENDER );
 		break;
+	}
+	if( bash3d_viewmodel_color_active )
+	{
+		RI.currententity->curstate.rendermode = bash3d_viewmodel_old_rendermode;
+		RI.currententity->curstate.renderamt = bash3d_viewmodel_old_renderamt;
+		RI.currententity->curstate.renderfx = bash3d_viewmodel_old_renderfx;
+		RI.currententity->curstate.rendercolor.r = bash3d_viewmodel_old_rendercolor[0];
+		RI.currententity->curstate.rendercolor.g = bash3d_viewmodel_old_rendercolor[1];
+		RI.currententity->curstate.rendercolor.b = bash3d_viewmodel_old_rendercolor[2];
 	}
 
 	// restore depth range

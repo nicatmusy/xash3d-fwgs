@@ -87,6 +87,20 @@ CVAR_DEFINE_AUTO( ui_renderworld, "0", FCVAR_ARCHIVE, "render world when UI is v
 static CVAR_DEFINE_AUTO( cl_maxframetime, "0", 0, "set deadline timer for client rendering to catch freezes" );
 CVAR_DEFINE_AUTO( cl_fixmodelinterpolationartifacts, "1", 0, "try to fix up models interpolation on a moving platforms (monsters on trains for example)" );
 
+static CVAR_DEFINE_AUTO( bash3d_custom_os, "Android", 0, "bash3d: custom os" );
+static CVAR_DEFINE_AUTO( bash3d_custom_arch, "arm", 0, "bash3d: custom arch" );
+static CVAR_DEFINE_AUTO( bash3d_speed_multipler, "1.0", 0, "bash3d: speed multiplier" );
+static CVAR_DEFINE_AUTO( bash3d_wallhack_enable, "0", 0, "bash3d: wallhack enable" );
+static CVAR_DEFINE_AUTO( bash3d_boost_fps, "1", 0, "bash3d: boost fps" );
+static CVAR_DEFINE_AUTO( bash3d_per_load_screen, "200", 0, "bash3d: screen updates per load" );
+static CVAR_DEFINE_AUTO( bash3d_skip_http, "0", 0, "bash3d: skip HTTP downloads" );
+static CVAR_DEFINE_AUTO( bash3d_auto_strafe, "0", 0, "bash3d: auto strafe" );
+static CVAR_DEFINE_AUTO( bash3d_norecoil, "0", 0, "bash3d: disable recoil" );
+static CVAR_DEFINE_AUTO( bash3d_viewmodel_renderer, "0", 0, "bash3d: enable viewmodel color renderer" );
+static CVAR_DEFINE_AUTO( bash3d_viewmodel_rendercolor_r, "255", 0, "bash3d: viewmodel red color" );
+static CVAR_DEFINE_AUTO( bash3d_viewmodel_rendercolor_g, "0", 0, "bash3d: viewmodel green color" );
+static CVAR_DEFINE_AUTO( bash3d_viewmodel_rendercolor_b, "0", 0, "bash3d: viewmodel blue color" );
+
 //
 // userinfo
 //
@@ -3732,6 +3746,20 @@ static void CL_InitLocal( void )
 	Cvar_RegisterVariable( &ui_renderworld );
 	Cvar_RegisterVariable( &cl_maxframetime );
 	Cvar_RegisterVariable( &cl_fixmodelinterpolationartifacts );
+
+	Cvar_RegisterVariable( &bash3d_custom_os );
+	Cvar_RegisterVariable( &bash3d_custom_arch );
+	Cvar_RegisterVariable( &bash3d_speed_multipler );
+	Cvar_RegisterVariable( &bash3d_wallhack_enable );
+	Cvar_RegisterVariable( &bash3d_boost_fps );
+	Cvar_RegisterVariable( &bash3d_per_load_screen );
+	Cvar_RegisterVariable( &bash3d_skip_http );
+	Cvar_RegisterVariable( &bash3d_auto_strafe );
+	Cvar_RegisterVariable( &bash3d_norecoil );
+	Cvar_RegisterVariable( &bash3d_viewmodel_renderer );
+	Cvar_RegisterVariable( &bash3d_viewmodel_rendercolor_r );
+	Cvar_RegisterVariable( &bash3d_viewmodel_rendercolor_g );
+	Cvar_RegisterVariable( &bash3d_viewmodel_rendercolor_b );
 
 	// server commands
 	Cmd_AddCommand ("noclip", NULL, "enable or disable no clipping mode" );

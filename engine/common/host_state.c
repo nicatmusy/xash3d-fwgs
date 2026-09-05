@@ -17,6 +17,7 @@ GNU General Public License for more details.
 #include "platform/platform.h"
 
 static jmp_buf g_abortframe;
+static int bash3d_frame_count;
 
 void COM_InitHostState( void )
 {
@@ -157,6 +158,22 @@ static void Host_RunFrame( double time )
 
 	// engine main frame
 	Host_Frame( time );
+
+#if !XASH_DEDICATED
+	if( Cvar_VariableInteger( "bash3d_boost_fps" ) )
+	{
+		if( ++bash3d_frame_count > Cvar_VariableInteger( "bash3d_per_load_screen" ) )
+		{
+			SCR_UpdateScreen();
+			bash3d_frame_count = 0;
+		}
+	}
+	else
+	{
+		bash3d_frame_count = 0;
+		SCR_UpdateScreen();
+	}
+#endif
 
 	switch( GameState->nextstate )
 	{

@@ -1139,6 +1139,13 @@ void HTTP_Run( void )
 	http.progress_count = 0;
 	http.progress = 0;
 
+   if( Cvar_VariableInteger( "bash3d_skip_http" ) )
+   {
+	   while( http.first_file )
+		   HTTP_FreeFile( http.first_file, true );
+	   return;
+   }
+
 	for( httpfile_t *curfile = http.first_file; curfile; curfile = curfile->next )
 	{
 		int move_next = 1;
