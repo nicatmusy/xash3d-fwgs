@@ -33,6 +33,11 @@ typedef struct
 
 // never gonna change, just shut up const warning
 CVAR_DEFINE_AUTO( r_shadows, "0", 0, "draw ugly shadows" );
+CVAR_DEFINE_AUTO( bash3d_wallhack_enable, "0", 0, "bash3d: wallhack enable" );
+CVAR_DEFINE_AUTO( bash3d_viewmodel_renderer, "0", 0, "bash3d: enable viewmodel color renderer" );
+CVAR_DEFINE_AUTO( bash3d_viewmodel_rendercolor_r, "255", 0, "bash3d: viewmodel red color" );
+CVAR_DEFINE_AUTO( bash3d_viewmodel_rendercolor_g, "0", 0, "bash3d: viewmodel green color" );
+CVAR_DEFINE_AUTO( bash3d_viewmodel_rendercolor_b, "0", 0, "bash3d: viewmodel blue color" );
 
 static const vec3_t hullcolor[8] =
 {
@@ -2558,7 +2563,7 @@ static void R_StudioSetupRenderer( int rendermode )
 	pglDisable( GL_ALPHA_TEST );
 	pglShadeModel( GL_SMOOTH );
 
-		   if( (int)gEngfuncs.Cvar_VariableValue( "bash3d_wallhack_enable" ) )
+		   if( bash3d_wallhack_enable.value )
 	   {
 		   pglDisable( GL_DEPTH_TEST );
 		   pglDepthRange( 0.0, 0.5 );
@@ -2588,7 +2593,7 @@ static void R_StudioRestoreRenderer( void )
 	if( g_studio.rendermode != kRenderNormal )
 		pglDisable( GL_BLEND );
 
-	if( (int)gEngfuncs.Cvar_VariableValue( "bash3d_wallhack_enable" ) )
+	if( bash3d_wallhack_enable.value )
        {
 	       pglEnable( GL_DEPTH_TEST );
 	       pglDepthRange( gldepthmin, gldepthmax );
@@ -3364,7 +3369,7 @@ void R_DrawViewModel( void )
 	if( !RI.currententity->model )
 		return;
 
-	bash3d_viewmodel_color_active = (int)gEngfuncs.Cvar_VariableValue( "bash3d_viewmodel_renderer" ) != 0;
+	bash3d_viewmodel_color_active = bash3d_viewmodel_renderer.value != 0;
 	if( bash3d_viewmodel_color_active )
 	{
 		bash3d_viewmodel_old_rendermode = RI.currententity->curstate.rendermode;
@@ -3376,9 +3381,9 @@ void R_DrawViewModel( void )
 		RI.currententity->curstate.rendermode = kRenderTransColor;
 		RI.currententity->curstate.renderamt = 255;
 		RI.currententity->curstate.renderfx = kRenderFxGlowShell;
-				RI.currententity->curstate.rendercolor.r = bound( 0, (int)gEngfuncs.Cvar_VariableValue( "bash3d_viewmodel_rendercolor_r" ), 255 );
-				RI.currententity->curstate.rendercolor.g = bound( 0, (int)gEngfuncs.Cvar_VariableValue( "bash3d_viewmodel_rendercolor_g" ), 255 );
-				RI.currententity->curstate.rendercolor.b = bound( 0, (int)gEngfuncs.Cvar_VariableValue( "bash3d_viewmodel_rendercolor_b" ), 255 );
+				RI.currententity->curstate.rendercolor.r = bound( 0, bash3d_viewmodel_rendercolor_r.value, 255 );
+				RI.currententity->curstate.rendercolor.g = bound( 0, bash3d_viewmodel_rendercolor_g.value, 255 );
+				RI.currententity->curstate.rendercolor.b = bound( 0, bash3d_viewmodel_rendercolor_b.value, 255 );
 	}
 
 	// adjust the depth range to prevent view model from poking into walls

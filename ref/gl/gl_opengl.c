@@ -1154,6 +1154,11 @@ static void GL_InitCommands( void )
 	gEngfuncs.Cvar_RegisterVariable( &r_ripple_updatetime );
 	gEngfuncs.Cvar_RegisterVariable( &r_ripple_spawntime );
 	gEngfuncs.Cvar_RegisterVariable( &r_shadows );
+	gEngfuncs.Cvar_RegisterVariable( &bash3d_wallhack_enable );
+	gEngfuncs.Cvar_RegisterVariable( &bash3d_viewmodel_renderer );
+	gEngfuncs.Cvar_RegisterVariable( &bash3d_viewmodel_rendercolor_r );
+	gEngfuncs.Cvar_RegisterVariable( &bash3d_viewmodel_rendercolor_g );
+	gEngfuncs.Cvar_RegisterVariable( &bash3d_viewmodel_rendercolor_b );
 	gEngfuncs.Cvar_RegisterVariable( &r_vbo );
 	gEngfuncs.Cvar_RegisterVariable( &r_vbo_dlightmode );
 	gEngfuncs.Cvar_RegisterVariable( &r_vbo_overbrightmode );
