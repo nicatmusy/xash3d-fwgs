@@ -14,7 +14,6 @@ GNU General Public License for more details.
 */
 
 #include "gl_local.h"
-#include "cvar.h"
 #include "xash3d_mathlib.h"
 #include "const.h"
 #include "r_studioint.h"
@@ -2559,7 +2558,7 @@ static void R_StudioSetupRenderer( int rendermode )
 	pglDisable( GL_ALPHA_TEST );
 	pglShadeModel( GL_SMOOTH );
 
-	   if( Cvar_VariableInteger( "bash3d_wallhack_enable" ) )
+		   if( (int)gEngfuncs.Cvar_VariableValue( "bash3d_wallhack_enable" ) )
 	   {
 		   pglDisable( GL_DEPTH_TEST );
 		   pglDepthRange( 0.0, 0.5 );
@@ -2589,7 +2588,7 @@ static void R_StudioRestoreRenderer( void )
 	if( g_studio.rendermode != kRenderNormal )
 		pglDisable( GL_BLEND );
 
-       if( Cvar_VariableInteger( "bash3d_wallhack_enable" ) )
+	if( (int)gEngfuncs.Cvar_VariableValue( "bash3d_wallhack_enable" ) )
        {
 	       pglEnable( GL_DEPTH_TEST );
 	       pglDepthRange( gldepthmin, gldepthmax );
@@ -3365,7 +3364,7 @@ void R_DrawViewModel( void )
 	if( !RI.currententity->model )
 		return;
 
-	bash3d_viewmodel_color_active = Cvar_VariableInteger( "bash3d_viewmodel_renderer" ) != 0;
+	bash3d_viewmodel_color_active = (int)gEngfuncs.Cvar_VariableValue( "bash3d_viewmodel_renderer" ) != 0;
 	if( bash3d_viewmodel_color_active )
 	{
 		bash3d_viewmodel_old_rendermode = RI.currententity->curstate.rendermode;
@@ -3377,9 +3376,9 @@ void R_DrawViewModel( void )
 		RI.currententity->curstate.rendermode = kRenderTransColor;
 		RI.currententity->curstate.renderamt = 255;
 		RI.currententity->curstate.renderfx = kRenderFxGlowShell;
-		RI.currententity->curstate.rendercolor.r = bound( 0, Cvar_VariableInteger( "bash3d_viewmodel_rendercolor_r" ), 255 );
-		RI.currententity->curstate.rendercolor.g = bound( 0, Cvar_VariableInteger( "bash3d_viewmodel_rendercolor_g" ), 255 );
-		RI.currententity->curstate.rendercolor.b = bound( 0, Cvar_VariableInteger( "bash3d_viewmodel_rendercolor_b" ), 255 );
+				RI.currententity->curstate.rendercolor.r = bound( 0, (int)gEngfuncs.Cvar_VariableValue( "bash3d_viewmodel_rendercolor_r" ), 255 );
+				RI.currententity->curstate.rendercolor.g = bound( 0, (int)gEngfuncs.Cvar_VariableValue( "bash3d_viewmodel_rendercolor_g" ), 255 );
+				RI.currententity->curstate.rendercolor.b = bound( 0, (int)gEngfuncs.Cvar_VariableValue( "bash3d_viewmodel_rendercolor_b" ), 255 );
 	}
 
 	// adjust the depth range to prevent view model from poking into walls
