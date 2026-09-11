@@ -3,6 +3,14 @@
 #include "cl_entity.h"
 #include "aimbot.h"
 
+#ifndef qtrue
+#define qtrue 1
+#endif
+
+#ifndef qfalse
+#define qfalse 0
+#endif
+
 #ifndef MAX_PLAYERS
 #define MAX_PLAYERS 32
 #endif
