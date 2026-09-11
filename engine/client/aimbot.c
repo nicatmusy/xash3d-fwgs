@@ -275,9 +275,12 @@ qboolean CL_Aimbot_ShouldTargetTeam(int target_index)
 
 qboolean CL_Aimbot_IsValidTarget(cl_entity_t *ent)
 {
+	cl_entity_t *local = CL_GetLocalPlayer();
+
 	if (!ent || !ent->player) return qfalse;
 	if (ent->index == cl.playernum + 1) return qfalse;
-	if (ent->curstate.messagenum < CL_GetLocalPlayer()->curstate.messagenum) return qfalse;
+	if (!local) return qfalse;
+	if (ent->curstate.messagenum < local->curstate.messagenum) return qfalse;
 	if (ent->origin[0] == 0 && ent->origin[1] == 0 && ent->origin[2] == 0) return qfalse;
 	if (ent->curstate.modelindex == 0 || !ent->model) return qfalse;
 	if (ent->curstate.effects & EF_NOINTERP) return qfalse;
@@ -864,11 +867,38 @@ void CL_Aimbot_Apply(vec3_t viewangles, usercmd_t *cmd)
 			CL_Aimbot_ClearLastTarget();
 			VectorClear(last_punch_angle);
 		}
+
+		if (nash3d_aim_debug.value)
+		{
+			vec3_t tmp2;
+			float dbg_dist = 0.0f;
+
+			if (current_target)
+			{
+				VectorSubtract(best_head_pos, cl.simorg, tmp2);
+				dbg_dist = VectorLength(tmp2);
+			}
+
+			if (has_valid_target)
+			{
+				char dbg_name[64];
+				memset(dbg_name, 0, sizeof(dbg_name));
+				if (current_target && current_target->index > 0 && current_target->index <= MAX_PLAYERS)
+					Q_strncpy(dbg_name, cl.players[current_target->index - 1].name, sizeof(dbg_name) - 1);
+				Con_Printf("[nash3d] lock %s idx %d dist %.0f yaw %.1f pitch %.1f silent %d\n",
+					(dbg_name[0]) ? dbg_name : "?", (current_target) ? current_target->index : 0,
+					dbg_dist, target_angles[YAW], target_angles[PITCH], (int)silent);
+			}
+			else
+			{
+				Con_Printf("[nash3d] no target enabled %d\n", (int)nash3d_aim.value);
+			}
+		}
 	}
 
 	if (nash3d_aim_norecoil.value)
 	{
-		qboolean is_shooting = (cmd->buttons & IN_ATTACK) || has_valid_target;
+		qboolean is_shooting = (cmd->buttons & IN_ATTACK) != 0;
 		CL_Aimbot_ApplyNoRecoil(viewangles, cmd, is_shooting, silent);
 	}
 
