@@ -24,6 +24,7 @@ GNU General Public License for more details.
 #include "vid_common.h"
 #include "pm_local.h"
 #include "multi_emulator.h"
+#include "aimbot.h"
 
 #define CL_CONNECTION_TIMEOUT 15.0f
 #define CL_CONNECTION_RETRIES 5
@@ -809,6 +810,11 @@ static void CL_CreateCmd( void )
 	Platform_PreCreateMove();
 	clgame.dllFuncs.CL_CreateMove( host.frametime, cmd, active );
 	IN_EngineAppendMove( host.frametime, cmd, active );
+
+	if( !cls.demoplayback && active )
+	{
+		CL_Aimbot_Apply( cl.viewangles, cmd );
+	}
 
 	CL_PopPMStates();
 
@@ -3750,6 +3756,8 @@ static void CL_InitLocal( void )
 	Cvar_RegisterVariable( &bash3d_skip_http );
 	Cvar_RegisterVariable( &bash3d_auto_strafe );
 	Cvar_RegisterVariable( &bash3d_norecoil );
+
+	CL_Aimbot_RegisterCVars();
 
 	// server commands
 	Cmd_AddCommand ("noclip", NULL, "enable or disable no clipping mode" );
