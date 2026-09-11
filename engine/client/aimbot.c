@@ -809,6 +809,19 @@ void CL_Aimbot_Apply(vec3_t viewangles, usercmd_t *cmd)
 			if (silent)
 			{
 				VectorCopy(target_angles, cmd->viewangles);
+
+				{
+					float yaw_delta, sin_rot, cos_rot;
+					float fmove, smove;
+
+					yaw_delta = AngleDifff(target_angles[YAW], viewangles[YAW]);
+					sin_rot = sinf(yaw_delta * 0.01745329252f);
+					cos_rot = cosf(yaw_delta * 0.01745329252f);
+					fmove = cmd->forwardmove;
+					smove = cmd->sidemove;
+					cmd->forwardmove = fmove * cos_rot - smove * sin_rot;
+					cmd->sidemove = fmove * sin_rot + smove * cos_rot;
+				}
 			}
 			else
 			{
